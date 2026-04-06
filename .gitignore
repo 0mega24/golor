@@ -1,0 +1,33 @@
+# Binaries and build output
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.out
+
+# Test binaries
+*.test
+
+# Coverage reports
+coverage.html
+coverage.out
+c.out
+
+# Dependency directory
+vendor/
+
+# Go workspace (local only)
+go.work
+go.work.sum
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
