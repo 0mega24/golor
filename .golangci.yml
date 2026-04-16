@@ -13,6 +13,9 @@ linters:
     - unused
     - exhaustive
     - unconvert
+    - nakedret
+    # Security
+    - gosec
     # Style / readability
     - revive
     - gocritic
@@ -25,15 +28,27 @@ linters:
     - prealloc
 
 linters-settings:
+  staticcheck:
+    # Enable all check suites: SA (bugs), S (simplifications), ST (style), QF (quickfixes).
+    checks: ["all"]
+
   gofumpt:
     extra-rules: true
 
   exhaustive:
-    # Require all enum values to be handled in switches, even with a default branch.
+    # A default branch does not satisfy exhaustiveness; all enum values must be explicit.
     default-signifies-exhaustive: false
 
-  cyclop:
-    max-complexity: 20
+  nakedret:
+    # Flag naked returns in functions longer than 5 lines.
+    max-func-lines: 5
+
+  gosec:
+    excludes:
+      # G115: integer overflow on conversion — false positive here because all channel
+      # values are clamped to [0, 1] before multiplication, so the result is always
+      # in [0, 255] and fits safely in uint8.
+      - G115
 
   revive:
     rules:
@@ -55,15 +70,13 @@ linters-settings:
       - diagnostic
       - performance
     disabled-checks:
-      # Disabled: flags intentional early-exit patterns in math functions.
+      # hugeParam flags struct-by-value params; intentional in this library since
+      # Color and HSL/HSV/LAB/LCH are small value types passed by value throughout.
       - hugeParam
 
   godot:
-    # Only require periods on declaration-level doc comments.
+    # Only require periods on declaration-level doc comments (not inline const labels).
     scope: declarations
-    exclude:
-      # Inline const comments like "// red-weak" are descriptive labels, not sentences.
-      - "^//"
 
   misspell:
     locale: US
@@ -73,8 +86,9 @@ issues:
   max-same-issues: 0
 
   exclude-rules:
-    # Test files get a looser pass on some style rules.
+    # Test files get a looser pass on style rules.
     - path: _test\.go
       linters:
         - gocritic
         - revive
+        - gosec

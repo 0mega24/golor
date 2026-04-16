@@ -6,16 +6,25 @@ ifeq ($(GO),)
 $(error Go not found in PATH)
 endif
 
-.PHONY: test lint fmt fmt-check clean
+.PHONY: test vet lint fix fmt fmt-check clean
 
 test:
-	$(GO) test ./...
+	$(GO) test -race -count=1 ./...
+
+vet:
+	$(GO) vet ./...
 
 lint:
 ifeq ($(LINT),)
 	$(error golangci-lint not found in PATH)
 endif
 	$(LINT) run
+
+fix:
+ifeq ($(LINT),)
+	$(error golangci-lint not found in PATH)
+endif
+	$(LINT) run --fix
 
 fmt:
 ifeq ($(GOFUMPT),)
