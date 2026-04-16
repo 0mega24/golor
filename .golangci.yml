@@ -1,0 +1,80 @@
+run:
+  timeout: 5m
+
+linters:
+  disable-all: true
+  enable:
+    # Correctness
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - ineffassign
+    - unused
+    - exhaustive
+    - unconvert
+    # Style / readability
+    - revive
+    - gocritic
+    - misspell
+    - godot
+    - whitespace
+    # Formatting
+    - gofumpt
+    # Performance
+    - prealloc
+
+linters-settings:
+  gofumpt:
+    extra-rules: true
+
+  exhaustive:
+    # Require all enum values to be handled in switches, even with a default branch.
+    default-signifies-exhaustive: false
+
+  cyclop:
+    max-complexity: 20
+
+  revive:
+    rules:
+      - name: exported
+      - name: var-naming
+      - name: error-strings
+      - name: if-return
+      - name: increment-decrement
+      - name: range
+      - name: receiver-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+    disabled-checks:
+      # Disabled: flags intentional early-exit patterns in math functions.
+      - hugeParam
+
+  godot:
+    # Only require periods on declaration-level doc comments.
+    scope: declarations
+    exclude:
+      # Inline const comments like "// red-weak" are descriptive labels, not sentences.
+      - "^//"
+
+  misspell:
+    locale: US
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  exclude-rules:
+    # Test files get a looser pass on some style rules.
+    - path: _test\.go
+      linters:
+        - gocritic
+        - revive
