@@ -11,15 +11,12 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
-
-      - name: go vet
-        run: go vet ./...
 
       - name: Run tests
         run: go test -race -count=1 ./...
@@ -28,13 +25,16 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           # Cache is managed by golangci-lint-action.
           cache: false
+
+      - name: go vet
+        run: go vet ./...
 
       - name: Check formatting
         run: |
