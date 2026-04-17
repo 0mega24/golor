@@ -21,7 +21,7 @@ func softLightChannel(base, layer float64) float64 {
 	}
 	var d float64
 	if base <= 0.25 {
-		d = ((16*base-12)*base+4)*base
+		d = ((16*base-12)*base + 4) * base
 	} else {
 		d = math.Sqrt(base)
 	}

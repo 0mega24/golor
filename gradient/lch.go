@@ -5,9 +5,9 @@ import (
 	"github.com/0mega24/golor/convert"
 )
 
-// GradientLCH returns n evenly-spaced colors interpolated in LCH space between a and b.
+// LCH returns n evenly-spaced colors interpolated in LCH space between a and b.
 // Hue takes the shortest path around the hue wheel. Both endpoints are included.
-func GradientLCH(a, b golor.Color, n int) []golor.Color {
+func LCH(a, b golor.Color, n int) []golor.Color {
 	if n <= 0 {
 		return nil
 	}

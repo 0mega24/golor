@@ -1,3 +1,4 @@
+// Package convert provides bidirectional conversions between sRGB and HSL, HSV, L*a*b*, and LCH color spaces.
 package convert
 
 import (

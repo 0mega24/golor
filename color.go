@@ -1,3 +1,4 @@
+// Package golor provides an sRGB Color type with constructors, accessors, and hex parsing.
 package golor
 
 import (

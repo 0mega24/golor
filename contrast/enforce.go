@@ -6,7 +6,7 @@ import "github.com/0mega24/golor"
 // It lightens fg if bg is dark, darkens fg if bg is light. Returns the adjusted color.
 // Uses binary search (bisection) blending toward white or black.
 func EnforceContrast(fg, bg golor.Color, minRatio float64) golor.Color {
-	if MeetsContrast(fg, bg, minRatio) {
+	if Meets(fg, bg, minRatio) {
 		return fg
 	}
 	bgLum := Luminance(bg)
@@ -24,7 +24,7 @@ func EnforceContrast(fg, bg golor.Color, minRatio float64) golor.Color {
 			G: fg.G + mid*(target.G-fg.G),
 			B: fg.B + mid*(target.B-fg.B),
 		}
-		if MeetsContrast(candidate, bg, minRatio) {
+		if Meets(candidate, bg, minRatio) {
 			hi = mid
 		} else {
 			lo = mid

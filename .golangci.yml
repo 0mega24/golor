@@ -1,14 +1,15 @@
+version: "2"
+
 run:
   timeout: 5m
 
 linters:
-  disable-all: true
+  default: none
   enable:
     # Correctness
     - govet
     - errcheck
     - staticcheck
-    - gosimple
     - ineffassign
     - unused
     - exhaustive
@@ -22,64 +23,68 @@ linters:
     - misspell
     - godot
     - whitespace
-    # Formatting
-    - gofumpt
     # Performance
     - prealloc
 
-linters-settings:
-  staticcheck:
-    # Enable all check suites: SA (bugs), S (simplifications), ST (style), QF (quickfixes).
-    checks: ["all"]
+  settings:
+    staticcheck:
+      # Enable all check suites: SA (bugs), S (simplifications), ST (style), QF (quickfixes).
+      checks: ["all"]
 
-  gofumpt:
-    extra-rules: true
+    exhaustive:
+      # A default branch does not satisfy exhaustiveness; all enum values must be explicit.
+      default-signifies-exhaustive: false
 
-  exhaustive:
-    # A default branch does not satisfy exhaustiveness; all enum values must be explicit.
-    default-signifies-exhaustive: false
+    nakedret:
+      # Flag naked returns in functions longer than 5 lines.
+      max-func-lines: 5
 
-  nakedret:
-    # Flag naked returns in functions longer than 5 lines.
-    max-func-lines: 5
+    gosec:
+      excludes:
+        # G115: integer overflow on conversion — false positive here because all channel
+        # values are clamped to [0, 1] before multiplication, so the result is always
+        # in [0, 255] and fits safely in uint8.
+        - G115
 
-  gosec:
-    excludes:
-      # G115: integer overflow on conversion — false positive here because all channel
-      # values are clamped to [0, 1] before multiplication, so the result is always
-      # in [0, 255] and fits safely in uint8.
-      - G115
+    revive:
+      rules:
+        - name: exported
+        - name: var-naming
+        - name: error-strings
+        - name: if-return
+        - name: increment-decrement
+        - name: range
+        - name: receiver-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
 
-  revive:
-    rules:
-      - name: exported
-      - name: var-naming
-      - name: error-strings
-      - name: if-return
-      - name: increment-decrement
-      - name: range
-      - name: receiver-naming
-      - name: unexported-return
-      - name: indent-error-flow
-      - name: errorf
-      - name: empty-block
-      - name: superfluous-else
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+      disabled-checks:
+        # Color, HSL/HSV/LAB/LCH are intentional small value types passed by value.
+        - hugeParam
+        # commentedOutCode fires on descriptive test labels (e.g. "// black * anything = black")
+        # which are not commented-out code; disable globally rather than fighting path exclusions.
+        - commentedOutCode
 
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - performance
-    disabled-checks:
-      # hugeParam flags struct-by-value params; intentional in this library since
-      # Color and HSL/HSV/LAB/LCH are small value types passed by value throughout.
-      - hugeParam
+    godot:
+      # Only require periods on declaration-level doc comments (not inline const labels).
+      scope: declarations
 
-  godot:
-    # Only require periods on declaration-level doc comments (not inline const labels).
-    scope: declarations
+    misspell:
+      locale: US
 
-  misspell:
-    locale: US
+formatters:
+  enable:
+    - gofumpt
+  settings:
+    gofumpt:
+      extra-rules: true
 
 issues:
   max-issues-per-linter: 0

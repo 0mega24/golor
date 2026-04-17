@@ -1,3 +1,4 @@
+// Package deltae provides perceptual color difference metrics (ΔE76 and CIEDE2000).
 package deltae
 
 import (

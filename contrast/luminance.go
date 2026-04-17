@@ -1,3 +1,4 @@
+// Package contrast provides WCAG 2.1 luminance, contrast ratio, and enforcement functions.
 package contrast
 
 import (

@@ -1,3 +1,4 @@
+// Package blend provides photographic blend mode functions for compositing two colors.
 package blend
 
 import "github.com/0mega24/golor"

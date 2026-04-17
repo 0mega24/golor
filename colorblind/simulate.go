@@ -1,3 +1,4 @@
+// Package colorblind provides color vision deficiency simulation and accessible palette tools.
 package colorblind
 
 import (
@@ -9,10 +10,11 @@ import (
 // Deficiency represents a type of color vision deficiency.
 type Deficiency int
 
+// Deficiency constants enumerate the supported types of color vision deficiency.
 const (
 	Deuteranopia Deficiency = iota // green-weak
-	Protanopia                      // red-weak
-	Tritanopia                      // blue-yellow
+	Protanopia                     // red-weak
+	Tritanopia                     // blue-yellow
 )
 
 // Simulate returns the approximate appearance of c for someone with the given deficiency.
