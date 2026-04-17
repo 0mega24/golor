@@ -19,7 +19,7 @@ golor provides a single `Color` type (normalized sRGB) and a set of focused sub-
 | `adjust` | Lighten, darken, saturate, hue shift, warm/cool, tint, shade |
 | `blend` | Blend modes: multiply, screen, overlay, soft light, and more |
 | `contrast` | WCAG 2.1 contrast ratio and enforcement |
-| `deltae` | Perceptual color difference (ΔE76 and CIEDE2000) |
+| `deltae` | Perceptual color difference (dE76 and CIEDE2000) |
 | `colorblind` | Deficiency simulation and accessible palette generation |
 | `harmony` | Complementary, triadic, analogous, tetradic, split schemes |
 | `gradient` | Interpolation in RGB, HSL, L\*a\*b\*, and LCH |
@@ -179,4 +179,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full contribution guidelines.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Apache 2.0, see [LICENSE](LICENSE).
