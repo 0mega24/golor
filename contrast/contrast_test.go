@@ -32,11 +32,11 @@ func TestLuminance(t *testing.T) {
 func TestContrastRatio(t *testing.T) {
 	white := golor.RGB(255, 255, 255)
 	black := golor.RGB(0, 0, 0)
-	ratio := contrast.ContrastRatio(white, black)
+	ratio := contrast.Ratio(white, black)
 	if math.Abs(ratio-21.0) > 0.01 {
 		t.Errorf("ContrastRatio(white, black) = %f, want 21.0 (±0.01)", ratio)
 	}
-	same := contrast.ContrastRatio(white, white)
+	same := contrast.Ratio(white, white)
 	if math.Abs(same-1.0) > 1e-6 {
 		t.Errorf("ContrastRatio(white, white) = %f, want 1.0", same)
 	}
@@ -45,10 +45,10 @@ func TestContrastRatio(t *testing.T) {
 func TestMeetsContrast(t *testing.T) {
 	white := golor.RGB(255, 255, 255)
 	black := golor.RGB(0, 0, 0)
-	if !contrast.MeetsContrast(white, black, 4.5) {
+	if !contrast.Meets(white, black, 4.5) {
 		t.Error("white/black should meet 4.5:1 ratio")
 	}
-	if contrast.MeetsContrast(white, white, 1.1) {
+	if contrast.Meets(white, white, 1.1) {
 		t.Error("white/white should not meet 1.1:1 ratio")
 	}
 }
@@ -57,7 +57,7 @@ func TestEnforceContrast(t *testing.T) {
 	bg := golor.RGB(0, 0, 0)
 	fg := golor.RGB(64, 64, 64)
 	adjusted := contrast.EnforceContrast(fg, bg, 4.5)
-	if !contrast.MeetsContrast(adjusted, bg, 4.5) {
+	if !contrast.Meets(adjusted, bg, 4.5) {
 		t.Errorf("EnforceContrast result %v does not meet 4.5:1 against black", adjusted)
 	}
 }

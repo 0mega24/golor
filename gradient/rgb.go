@@ -1,10 +1,11 @@
+// Package gradient provides color gradient interpolation in RGB, HSL, L*a*b*, and LCH color spaces.
 package gradient
 
 import "github.com/0mega24/golor"
 
-// GradientRGB returns n evenly-spaced colors interpolated in RGB space between a and b.
+// RGB returns n evenly-spaced colors interpolated in RGB space between a and b.
 // Both endpoints are included. Returns nil if n <= 0.
-func GradientRGB(a, b golor.Color, n int) []golor.Color {
+func RGB(a, b golor.Color, n int) []golor.Color {
 	if n <= 0 {
 		return nil
 	}

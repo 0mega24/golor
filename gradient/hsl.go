@@ -7,9 +7,9 @@ import (
 	"github.com/0mega24/golor/convert"
 )
 
-// GradientHSL returns n evenly-spaced colors interpolated in HSL space between a and b.
+// HSL returns n evenly-spaced colors interpolated in HSL space between a and b.
 // Hue takes the shortest path around the hue wheel. Both endpoints are included.
-func GradientHSL(a, b golor.Color, n int) []golor.Color {
+func HSL(a, b golor.Color, n int) []golor.Color {
 	if n <= 0 {
 		return nil
 	}

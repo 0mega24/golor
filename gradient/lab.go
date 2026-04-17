@@ -5,9 +5,9 @@ import (
 	"github.com/0mega24/golor/convert"
 )
 
-// GradientLAB returns n evenly-spaced colors interpolated in LAB space between a and b.
+// LAB returns n evenly-spaced colors interpolated in LAB space between a and b.
 // Both endpoints are included.
-func GradientLAB(a, b golor.Color, n int) []golor.Color {
+func LAB(a, b golor.Color, n int) []golor.Color {
 	if n <= 0 {
 		return nil
 	}

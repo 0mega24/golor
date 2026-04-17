@@ -1,3 +1,4 @@
+// Package transform provides a fluent Builder for chaining color transformations.
 package transform
 
 import (

@@ -40,13 +40,14 @@ func ciede2000(lab1, lab2 convert.LAB) float64 {
 	dCp := c2p - c1p
 
 	var dhp float64
-	if c1p*c2p == 0 {
+	switch {
+	case c1p*c2p == 0:
 		dhp = 0
-	} else if math.Abs(h2p-h1p) <= 180 {
+	case math.Abs(h2p-h1p) <= 180:
 		dhp = h2p - h1p
-	} else if h2p-h1p > 180 {
+	case h2p-h1p > 180:
 		dhp = h2p - h1p - 360
-	} else {
+	default:
 		dhp = h2p - h1p + 360
 	}
 	dHp := 2 * math.Sqrt(c1p*c2p) * math.Sin(dhp*math.Pi/360)
@@ -55,13 +56,14 @@ func ciede2000(lab1, lab2 convert.LAB) float64 {
 	cAvgp := (c1p + c2p) / 2
 
 	var hAvgp float64
-	if c1p*c2p == 0 {
+	switch {
+	case c1p*c2p == 0:
 		hAvgp = h1p + h2p
-	} else if math.Abs(h1p-h2p) <= 180 {
+	case math.Abs(h1p-h2p) <= 180:
 		hAvgp = (h1p + h2p) / 2
-	} else if h1p+h2p < 360 {
+	case h1p+h2p < 360:
 		hAvgp = (h1p + h2p + 360) / 2
-	} else {
+	default:
 		hAvgp = (h1p + h2p - 360) / 2
 	}
 
@@ -78,13 +80,13 @@ func ciede2000(lab1, lab2 convert.LAB) float64 {
 
 	cAvgp7 := math.Pow(cAvgp, 7)
 	rc := 2 * math.Sqrt(cAvgp7/(cAvgp7+math.Pow(25, 7)))
-	dTheta := 30 * math.Exp(-math.Pow((hAvgp-275)/25, 2))
+	dTheta := 30 * math.Exp(-(hAvgp-275)/25*((hAvgp-275)/25))
 	rT := -math.Sin(2*dTheta*math.Pi/180) * rc
 
 	return math.Sqrt(
-		math.Pow(dLp/(kL*sL), 2)+
-			math.Pow(dCp/(kC*sC), 2)+
-			math.Pow(dHp/(kH*sH), 2)+
+		dLp/(kL*sL)*(dLp/(kL*sL)) +
+			dCp/(kC*sC)*(dCp/(kC*sC)) +
+			dHp/(kH*sH)*(dHp/(kH*sH)) +
 			rT*(dCp/(kC*sC))*(dHp/(kH*sH)),
 	)
 }

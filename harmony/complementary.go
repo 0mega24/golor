@@ -1,3 +1,4 @@
+// Package harmony provides color harmony generators based on hue relationships.
 package harmony
 
 import "github.com/0mega24/golor"

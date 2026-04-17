@@ -1,3 +1,4 @@
+// Package adjust provides HSL and HSV color adjustment functions.
 package adjust
 
 import (
