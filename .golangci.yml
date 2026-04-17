@@ -50,7 +50,7 @@ linters:
 
     gosec:
       excludes:
-        # G115: integer overflow on conversion — false positive here because all channel
+        # G115: integer overflow on conversion. False positive here because all channel
         # values are clamped to [0, 1] before multiplication, so the result is always
         # in [0, 255] and fits safely in uint8.
         - G115
