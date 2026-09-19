@@ -6,15 +6,13 @@ import (
 	"github.com/0mega24/golor/v2"
 )
 
-// SoftLight applies the Photoshop Soft Light blend mode (channel-wise, W3C formula).
-// The result alpha is the source-over composited alpha of base and layer.
+// SoftLight applies the Soft Light blend mode with Porter-Duff source-over alpha compositing.
 func SoftLight(base, layer golor.Color) golor.Color {
-	return golor.RGBAf(
+	return compositeBlend(base, layer, golor.RGBf(
 		softLightChannel(base.R, layer.R),
 		softLightChannel(base.G, layer.G),
 		softLightChannel(base.B, layer.B),
-		blendedAlpha(base, layer),
-	)
+	))
 }
 
 func softLightChannel(base, layer float64) float64 {
