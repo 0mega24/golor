@@ -3,8 +3,8 @@ package colorblind_test
 import (
 	"testing"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/colorblind"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/colorblind"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,4 +39,13 @@ func TestAccessiblePalette(t *testing.T) {
 	}
 	result := colorblind.AccessiblePalette(colors, colorblind.Deuteranopia)
 	assert.Equal(t, len(colors), len(result))
+}
+
+func TestColorblindPreservesAlpha(t *testing.T) {
+	c := golor.RGBA(100, 200, 50, 77)
+	assert.Equal(t, c.A8(), colorblind.Simulate(c, colorblind.Deuteranopia).A8())
+
+	result := colorblind.AccessiblePalette([]golor.Color{c, c}, colorblind.Deuteranopia)
+	assert.Equal(t, c.A8(), result[0].A8())
+	assert.Equal(t, c.A8(), result[1].A8())
 }

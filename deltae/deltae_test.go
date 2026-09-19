@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/deltae"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/deltae"
 )
 
 func TestDeltaE76Identical(t *testing.T) {

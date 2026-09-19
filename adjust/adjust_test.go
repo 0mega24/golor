@@ -4,9 +4,9 @@ import (
 	"math"
 	"testing"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/adjust"
-	"github.com/0mega24/golor/convert"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/adjust"
+	"github.com/0mega24/golor/v2/convert"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -116,6 +116,28 @@ func TestCool(t *testing.T) {
 	distBefore := hueDist(before, target)
 	distAfter := hueDist(after, target)
 	assert.Less(t, distAfter, distBefore, "cool should move hue closer to blue")
+}
+
+func TestAdjustPreservesAlpha(t *testing.T) {
+	c := golor.RGBA(100, 150, 200, 77)
+	results := []golor.Color{
+		adjust.Lighten(c, 0.1),
+		adjust.Darken(c, 0.1),
+		adjust.Saturate(c, 0.1),
+		adjust.Desaturate(c, 0.1),
+		adjust.ShiftHue(c, 30),
+		adjust.SetHue(c, 120),
+		adjust.SetLightness(c, 0.5),
+		adjust.SetSaturation(c, 0.5),
+		adjust.SetValue(c, 0.5),
+		adjust.Tint(c, 0.5),
+		adjust.Shade(c, 0.5),
+		adjust.Warm(c, 0.5),
+		adjust.Cool(c, 0.5),
+	}
+	for _, result := range results {
+		assert.Equal(t, c.A8(), result.A8())
+	}
 }
 
 func hueDist(h1, h2 float64) float64 {

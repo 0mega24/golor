@@ -1,12 +1,13 @@
 package gradient
 
 import (
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/convert"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/convert"
 )
 
 // MultiStopLCH interpolates through all stops in LCH space, returning n total colors.
 // Both outer endpoints are included. Returns nil if n <= 0 or stops is empty.
+// Alpha is interpolated linearly through the stops.
 func MultiStopLCH(stops []golor.Color, n int) []golor.Color {
 	return multiStop(stops, n, func(a, b golor.Color, t float64) golor.Color {
 		la := convert.ToLCH(a)
@@ -16,18 +17,22 @@ func MultiStopLCH(stops []golor.Color, n int) []golor.Color {
 			C: la.C + t*(lb.C-la.C),
 			H: lerpHue(la.H, lb.H, t),
 		}
-		return convert.FromLCH(lch)
+		out := convert.FromLCH(lch)
+		out.A = a.A + t*(b.A-a.A)
+		return out
 	})
 }
 
 // MultiStopRGB interpolates through all stops in RGB space, returning n total colors.
 // Both outer endpoints are included. Returns nil if n <= 0 or stops is empty.
+// Alpha is interpolated linearly through the stops.
 func MultiStopRGB(stops []golor.Color, n int) []golor.Color {
 	return multiStop(stops, n, func(a, b golor.Color, t float64) golor.Color {
-		return golor.RGBf(
+		return golor.RGBAf(
 			a.R+t*(b.R-a.R),
 			a.G+t*(b.G-a.G),
 			a.B+t*(b.B-a.B),
+			a.A+t*(b.A-a.A),
 		)
 	})
 }

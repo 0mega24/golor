@@ -1,6 +1,6 @@
 package harmony
 
-import "github.com/0mega24/golor"
+import "github.com/0mega24/golor/v2"
 
 // Tetradic returns four colors equally spaced around the hue wheel (90° apart).
 func Tetradic(c golor.Color) [4]golor.Color {

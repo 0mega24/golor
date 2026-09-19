@@ -3,12 +3,13 @@ package gradient
 import (
 	"math"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/convert"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/convert"
 )
 
 // HSL returns n evenly-spaced colors interpolated in HSL space between a and b.
 // Hue takes the shortest path around the hue wheel. Both endpoints are included.
+// Alpha is interpolated linearly.
 func HSL(a, b golor.Color, n int) []golor.Color {
 	if n <= 0 {
 		return nil
@@ -27,6 +28,7 @@ func HSL(a, b golor.Color, n int) []golor.Color {
 			L: ha.L + t*(hb.L-ha.L),
 		}
 		result[i] = convert.FromHSL(hsl)
+		result[i].A = a.A + t*(b.A-a.A)
 	}
 	return result
 }

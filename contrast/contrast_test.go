@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/contrast"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/contrast"
 )
 
 func TestLuminance(t *testing.T) {

@@ -3,8 +3,8 @@ package gradient_test
 import (
 	"testing"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/gradient"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/gradient"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -64,4 +64,14 @@ func TestMultiStopLCH(t *testing.T) {
 	assert.Equal(t, 3, len(result))
 	assert.InDelta(t, black.R, result[0].R, 1e-5)
 	assert.InDelta(t, white.R, result[2].R, 1e-5)
+}
+
+func TestGradientInterpolatesAlpha(t *testing.T) {
+	a := golor.RGBA(0, 0, 0, 0)
+	b := golor.RGBA(255, 255, 255, 255)
+	result := gradient.RGB(a, b, 3)
+	assert.Equal(t, uint8(128), result[1].A8())
+
+	result = gradient.LCH(a, b, 3)
+	assert.Equal(t, uint8(128), result[1].A8())
 }

@@ -4,9 +4,9 @@ import (
 	"math"
 	"testing"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/convert"
-	"github.com/0mega24/golor/harmony"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/convert"
+	"github.com/0mega24/golor/v2/harmony"
 	"github.com/stretchr/testify/assert"
 )
 

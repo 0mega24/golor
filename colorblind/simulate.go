@@ -4,7 +4,7 @@ package colorblind
 import (
 	"math"
 
-	"github.com/0mega24/golor"
+	"github.com/0mega24/golor/v2"
 )
 
 // Deficiency represents a type of color vision deficiency.
@@ -19,7 +19,7 @@ const (
 
 // Simulate returns the approximate appearance of c for someone with the given deficiency.
 // Uses the Viénot et al. (1999) matrix method for deuteranopia/protanopia,
-// and Brettel et al. (1997) for tritanopia.
+// and Brettel et al. (1997) for tritanopia. Alpha is preserved.
 func Simulate(c golor.Color, d Deficiency) golor.Color {
 	r := cbLinearize(c.R)
 	g := cbLinearize(c.G)
@@ -41,7 +41,7 @@ func Simulate(c golor.Color, d Deficiency) golor.Color {
 		sb = 0.73407*g + 0.26593*b
 	}
 
-	return golor.RGBf(cbGamma(sr), cbGamma(sg), cbGamma(sb))
+	return golor.RGBAf(cbGamma(sr), cbGamma(sg), cbGamma(sb), c.A)
 }
 
 func cbLinearize(v float64) float64 {

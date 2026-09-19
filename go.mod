@@ -1,4 +1,4 @@
-module github.com/0mega24/golor
+module github.com/0mega24/golor/v2
 
 go 1.26.1
 

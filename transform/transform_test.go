@@ -3,10 +3,10 @@ package transform_test
 import (
 	"testing"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/blend"
-	"github.com/0mega24/golor/convert"
-	"github.com/0mega24/golor/transform"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/blend"
+	"github.com/0mega24/golor/v2/convert"
+	"github.com/0mega24/golor/v2/transform"
 	"github.com/stretchr/testify/assert"
 )
 

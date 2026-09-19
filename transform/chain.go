@@ -2,8 +2,8 @@
 package transform
 
 import (
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/adjust"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/adjust"
 )
 
 // Chain holds a color and allows fluent multi-step transformations.

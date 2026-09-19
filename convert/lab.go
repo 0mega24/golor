@@ -3,7 +3,7 @@ package convert
 import (
 	"math"
 
-	"github.com/0mega24/golor"
+	"github.com/0mega24/golor/v2"
 )
 
 // LAB represents a color in CIE L*a*b* space (D65 illuminant).

@@ -1,6 +1,6 @@
 package harmony
 
-import "github.com/0mega24/golor"
+import "github.com/0mega24/golor/v2"
 
 // Analogous returns three colors: c shifted left by angle, c itself, and c shifted right by angle.
 // angle is the spread in degrees (e.g. 30).

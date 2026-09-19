@@ -1,12 +1,13 @@
 package gradient
 
 import (
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/convert"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/convert"
 )
 
 // LAB returns n evenly-spaced colors interpolated in LAB space between a and b.
 // Both endpoints are included.
+// Alpha is interpolated linearly.
 func LAB(a, b golor.Color, n int) []golor.Color {
 	if n <= 0 {
 		return nil
@@ -25,6 +26,7 @@ func LAB(a, b golor.Color, n int) []golor.Color {
 			B: la.B + t*(lb.B-la.B),
 		}
 		result[i] = convert.FromLAB(lab)
+		result[i].A = a.A + t*(b.A-a.A)
 	}
 	return result
 }

@@ -3,7 +3,7 @@ package convert
 import (
 	"math"
 
-	"github.com/0mega24/golor"
+	"github.com/0mega24/golor/v2"
 )
 
 // HSV represents a color in hue-saturation-value space.

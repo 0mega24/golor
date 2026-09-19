@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/convert"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/convert"
 )
 
 func TestToHSVRoundTrip(t *testing.T) {
@@ -88,5 +88,20 @@ func TestToLCHRoundTrip(t *testing.T) {
 				t.Errorf("LCH round-trip: got %v, want %v", got, tc.c)
 			}
 		})
+	}
+}
+
+func TestToCMYKRoundTrip(t *testing.T) {
+	cases := []golor.Color{
+		golor.RGB(255, 0, 0),
+		golor.RGB(0, 0, 0),
+		golor.RGB(255, 255, 255),
+		golor.RGB(128, 64, 200),
+	}
+	for _, c := range cases {
+		got := convert.FromCMYK(convert.ToCMYK(c))
+		if math.Abs(got.R-c.R) > 1e-6 || math.Abs(got.G-c.G) > 1e-6 || math.Abs(got.B-c.B) > 1e-6 {
+			t.Errorf("CMYK round-trip: got %v, want %v", got, c)
+		}
 	}
 }

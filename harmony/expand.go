@@ -3,12 +3,12 @@ package harmony
 import (
 	"math"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/convert"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/convert"
 )
 
 // Expand returns n colors ranging from a dark shade through c to a light tint,
-// evenly distributed in HSL lightness. The hue and saturation of c are preserved.
+// evenly distributed in HSL lightness. The hue, saturation, and alpha of c are preserved.
 func Expand(c golor.Color, n int) []golor.Color {
 	if n <= 0 {
 		return nil
@@ -25,6 +25,7 @@ func Expand(c golor.Color, n int) []golor.Color {
 		step := hsl
 		step.L = minL + t*(maxL-minL)
 		result[i] = convert.FromHSL(step)
+		result[i].A = c.A
 	}
 	return result
 }

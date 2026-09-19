@@ -3,12 +3,12 @@ package deltae
 import (
 	"math"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/convert"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/convert"
 )
 
 // EnsureDistinct adjusts colors in the slice so each pair has at least minDeltaE
-// perceptual difference (using DeltaE76). Returns the adjusted slice.
+// perceptual difference (using DeltaE76 after compositing over white). Returns the adjusted slice.
 func EnsureDistinct(colors []golor.Color, minDeltaE float64) []golor.Color {
 	result := make([]golor.Color, len(colors))
 	copy(result, colors)
@@ -24,6 +24,7 @@ func EnsureDistinct(colors []golor.Color, minDeltaE float64) []golor.Color {
 				}
 				prev := result[j]
 				result[j] = convert.FromLCH(lchj)
+				result[j].A = prev.A
 				if result[j] == prev {
 					break
 				}

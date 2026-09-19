@@ -3,8 +3,8 @@ package blend_test
 import (
 	"testing"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/blend"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/blend"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -76,4 +76,14 @@ func TestLuminosity(t *testing.T) {
 	// Applying white layer should make result very bright
 	result := blend.Luminosity(red, white)
 	assert.Greater(t, result.R+result.G+result.B, 2.0)
+}
+
+func TestBlendKeepsAlpha(t *testing.T) {
+	base := golor.RGBA(255, 0, 0, 128)
+	layer := golor.RGBA(0, 0, 255, 128)
+	result := blend.Multiply(base, layer)
+	assert.Equal(t, uint8(192), result.A8())
+
+	mixed := blend.Mix(base, layer, 0.5)
+	assert.Equal(t, uint8(128), mixed.A8())
 }

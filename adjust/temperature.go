@@ -3,16 +3,16 @@ package adjust
 import (
 	"math"
 
-	"github.com/0mega24/golor"
-	"github.com/0mega24/golor/convert"
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/convert"
 )
 
-// Warm shifts the hue toward orange (~30°) by amount (0=no shift, 1=full shift to orange).
+// Warm shifts the hue toward orange (~30°) by amount (0=no shift, 1=full shift to orange) and preserves alpha.
 func Warm(c golor.Color, amount float64) golor.Color {
 	return shiftToward(c, 30, amount)
 }
 
-// Cool shifts the hue toward blue (~210°) by amount (0=no shift, 1=full shift to blue).
+// Cool shifts the hue toward blue (~210°) by amount (0=no shift, 1=full shift to blue) and preserves alpha.
 func Cool(c golor.Color, amount float64) golor.Color {
 	return shiftToward(c, 210, amount)
 }
@@ -29,5 +29,7 @@ func shiftToward(c golor.Color, targetDeg, amount float64) golor.Color {
 		diff += 360
 	}
 	hsl.H = math.Mod(hsl.H+diff*clamp01(amount)+360*10, 360)
-	return convert.FromHSL(hsl)
+	out := convert.FromHSL(hsl)
+	out.A = c.A
+	return out
 }

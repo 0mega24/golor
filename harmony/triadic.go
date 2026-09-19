@@ -1,6 +1,6 @@
 package harmony
 
-import "github.com/0mega24/golor"
+import "github.com/0mega24/golor/v2"
 
 // Triadic returns c and two colors equally spaced around the hue wheel (120° apart).
 func Triadic(c golor.Color) [3]golor.Color {
