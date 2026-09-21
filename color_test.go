@@ -124,6 +124,16 @@ func TestParseCSS(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestNamedCSSColors(t *testing.T) {
+	c, err := golor.Named("RebeccaPurple")
+	require.NoError(t, err)
+	assert.Equal(t, golor.RGB(102, 51, 153), c)
+
+	c, err = golor.Named("transparent")
+	require.NoError(t, err)
+	assert.Equal(t, golor.RGBA(0, 0, 0, 0), c)
+}
+
 func TestCSSStringMethods(t *testing.T) {
 	assert.Equal(t, "rgb(255 0 0 / 0.502)", golor.RGBA(255, 0, 0, 128).CSSRGBString())
 	assert.Equal(t, "hsl(0 100% 50%)", golor.RGB(255, 0, 0).CSSHSLString())
