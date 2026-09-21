@@ -10,17 +10,13 @@ import (
 
 const (
 	minAccessibleDeltaE = 10.0
-	// MaxAccessiblePaletteAttempts bounds the adaptive hue-shift search per color.
-	// If no attempted shift fully separates a color from prior colors, AccessiblePalette returns
-	// the best candidate found for that color.
+
+	// MaxAccessiblePaletteAttempts caps hue-shift attempts per color.
 	MaxAccessiblePaletteAttempts = 24
 )
 
-// AccessiblePalette returns a best-effort version of colors that is distinguishable under d.
-// It preserves alpha and adaptively searches bounded hue shifts for colors whose simulated
-// DeltaE76 distance is below 10. Full pairwise separability is not guaranteed for all inputs
-// such as palettes clustered around one hue; after MaxAccessiblePaletteAttempts per color,
-// the best candidate found is returned rather than hanging or returning an error.
+// AccessiblePalette returns a best-effort palette distinguishable under d.
+// It preserves alpha and may return partially separated results for pathological palettes.
 func AccessiblePalette(colors []golor.Color, d Deficiency) []golor.Color {
 	result := make([]golor.Color, len(colors))
 	copy(result, colors)
