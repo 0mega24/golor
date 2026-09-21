@@ -1,4 +1,5 @@
 # Binaries and build output
+bin/
 *.exe
 *.exe~
 *.dll
@@ -20,6 +21,9 @@ vendor/
 # Go workspace (local only)
 go.work
 go.work.sum
+
+# Local planning documents
+prd-*.md
 
 # IDE / editor
 .idea/

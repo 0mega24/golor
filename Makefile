@@ -6,7 +6,7 @@ ifeq ($(GO),)
 $(error Go not found in PATH)
 endif
 
-.PHONY: test vet lint fix fmt fmt-check clean
+.PHONY: test vet lint fix fmt fmt-check build cli clean
 
 test:
 	$(GO) test -race -count=1 ./...
@@ -34,7 +34,7 @@ endif
 
 fmt-check:
 ifeq ($(GOFUMPT),)
-	$(error gofumpt not found in PATH)
+$(error gofumpt not found in PATH)
 endif
 	@if [ -n "$(shell $(GOFUMPT) -l .)" ]; then \
 		echo "Files not gofumpt-formatted:"; \
@@ -42,5 +42,12 @@ endif
 		exit 1; \
 	fi
 
+build:
+	$(GO) build -o bin/golor ./cmd/golor
+
+cli:
+	@:
+
 clean:
 	$(GO) clean ./...
+	rm -f bin/golor
