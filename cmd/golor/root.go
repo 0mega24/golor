@@ -10,7 +10,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -19,6 +18,7 @@ import (
 	"github.com/0mega24/golor/v2/ansi"
 	"github.com/0mega24/golor/v2/contrast"
 	"github.com/0mega24/golor/v2/convert"
+	"github.com/0mega24/golor/v2/palette"
 )
 
 type cliOptions struct {
@@ -290,14 +290,15 @@ func newPaletteCommand(stdout io.Writer, opts *cliOptions) *cobra.Command {
 			if n <= 0 {
 				return fmt.Errorf("n must be greater than 0")
 			}
-			if algorithm != "frequency" && algorithm != "default" {
-				return fmt.Errorf("unknown palette algorithm %q", algorithm)
+			paletteAlgorithm, err := parsePaletteAlgorithm(algorithm)
+			if err != nil {
+				return err
 			}
 			colorMode, err := parseColorMode(mode)
 			if err != nil {
 				return err
 			}
-			colors, err := extractPalette(args[0], n)
+			colors, err := extractPalette(args[0], n, paletteAlgorithm)
 			if err != nil {
 				return err
 			}
@@ -311,12 +312,25 @@ func newPaletteCommand(stdout io.Writer, opts *cliOptions) *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVarP(&n, "n", "n", 5, "number of colors to extract")
-	cmd.Flags().StringVar(&algorithm, "algorithm", "frequency", "palette algorithm: frequency")
+	cmd.Flags().StringVar(&algorithm, "algorithm", "median-cut", "palette algorithm: median-cut, kmeans, octree")
 	cmd.Flags().StringVar(&mode, "color-mode", "auto", "color mode: auto, truecolor, 256")
 	return cmd
 }
 
-func extractPalette(path string, n int) ([]golor.Color, error) {
+func parsePaletteAlgorithm(name string) (palette.Algorithm, error) {
+	switch strings.ToLower(name) {
+	case "", "default", "median-cut", "mediancut":
+		return palette.MedianCut, nil
+	case "kmeans", "k-means":
+		return palette.KMeans, nil
+	case "octree":
+		return palette.Octree, nil
+	default:
+		return palette.MedianCut, fmt.Errorf("unknown palette algorithm %q", name)
+	}
+}
+
+func extractPalette(path string, n int, algorithm palette.Algorithm) ([]golor.Color, error) {
 	file, err := os.Open(path) // #nosec G304 -- CLI intentionally reads the user-supplied image path.
 	if err != nil {
 		return nil, err
@@ -329,32 +343,5 @@ func extractPalette(path string, n int) ([]golor.Color, error) {
 	if err != nil {
 		return nil, err
 	}
-	counts := map[uint32]int{}
-	bounds := img.Bounds()
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			c := golor.FromStdColor(img.At(x, y))
-			key := uint32(c.R8())<<24 | uint32(c.G8())<<16 | uint32(c.B8())<<8 | uint32(c.A8())
-			counts[key]++
-		}
-	}
-	keys := make([]uint32, 0, len(counts))
-	for key := range counts {
-		keys = append(keys, key)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		if counts[keys[i]] == counts[keys[j]] {
-			return keys[i] < keys[j]
-		}
-		return counts[keys[i]] > counts[keys[j]]
-	})
-	if n > len(keys) {
-		n = len(keys)
-	}
-	colors := make([]golor.Color, n)
-	for i := 0; i < n; i++ {
-		key := keys[i]
-		colors[i] = golor.RGBA(uint8(key>>24), uint8(key>>16), uint8(key>>8), uint8(key))
-	}
-	return colors, nil
+	return palette.Extract(img, n, palette.WithAlgorithm(algorithm)), nil
 }

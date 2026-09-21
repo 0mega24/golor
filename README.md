@@ -23,6 +23,7 @@ golor provides a single `Color` type (normalized sRGB) and a set of focused sub-
 | `colorblind` | Deficiency simulation and accessible palette generation |
 | `harmony` | Complementary, triadic, analogous, tetradic, split schemes |
 | `gradient` | Interpolation in RGB, HSL, L\*a\*b\*, and LCH |
+| `palette` | Dominant color extraction from images |
 | `transform` | Fluent chained transformations |
 
 ---
@@ -150,6 +151,25 @@ sim  = colorblind.Simulate(c, colorblind.Tritanopia)
 safe := colorblind.AccessiblePalette(palette, colorblind.Deuteranopia)
 ```
 
+`AccessiblePalette` uses a bounded adaptive hue-shift search. It returns the best effort for hard palettes rather than hanging or returning an error.
+
+### Palette extraction
+
+```go
+import "github.com/0mega24/golor/v2/palette"
+
+colors := palette.Extract(img, 6) // default: median-cut
+colors  = palette.Extract(img, 6, palette.WithAlgorithm(palette.Octree))
+colors  = palette.Extract(
+    img,
+    6,
+    palette.WithAlgorithm(palette.KMeans),
+    palette.WithSeed(42),
+)
+```
+
+Results are ordered by dominance. Median-cut and octree are deterministic fast quantizers; k-means uses deterministic k-means++ initialization with an explicit seed and bounded iterations.
+
 ### Color harmonies
 
 ```go
@@ -221,6 +241,8 @@ Extract a simple image palette:
 
 ```sh
 golor palette wallpaper.png -n 6
+golor palette wallpaper.png -n 6 --algorithm kmeans
+golor palette wallpaper.png -n 6 --algorithm octree
 golor palette wallpaper.png -n 6 --json
 ```
 

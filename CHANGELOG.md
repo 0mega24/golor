@@ -24,6 +24,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - `colorblind` package: deficiency simulation (deuteranopia, protanopia, tritanopia) and AccessiblePalette
 - `harmony` package: complementary, triadic, analogous, tetradic, split-complementary, and lightness-expand generators
 - `gradient` package: interpolation in RGB, HSL, L\*a\*b\*, LCH, and multi-stop variants
+- `palette` package: dominant image palette extraction with median-cut, k-means, and octree algorithms
 - `transform` package: fluent `Chain` builder for composing transformations
 - CI pipeline with `golangci-lint`, `gofumpt`, `go vet`, and race-enabled tests
 
@@ -34,5 +35,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - Gradient functions interpolate alpha linearly.
 - Contrast functions resolve alpha by compositing foreground over background over white before calculating WCAG ratios.
 - Delta E functions composite non-opaque colors over white before Lab comparison.
+- `colorblind.AccessiblePalette` now uses a bounded adaptive hue-shift search and returns best-effort results for pathological palettes.
 
 [Unreleased]: https://github.com/0mega24/golor/v2/compare/main...HEAD

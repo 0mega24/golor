@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/adjust"
 	"github.com/0mega24/golor/v2/colorblind"
 	"github.com/stretchr/testify/assert"
 )
@@ -48,4 +49,23 @@ func TestColorblindPreservesAlpha(t *testing.T) {
 	result := colorblind.AccessiblePalette([]golor.Color{c, c}, colorblind.Deuteranopia)
 	assert.Equal(t, c.A8(), result[0].A8())
 	assert.Equal(t, c.A8(), result[1].A8())
+}
+
+func TestAccessiblePalettePathologicalPaletteReturns(t *testing.T) {
+	colors := make([]golor.Color, 10)
+	base := golor.RGBA(180, 60, 50, 128)
+	for i := range colors {
+		colors[i] = adjust.ShiftHue(base, float64(i%5))
+	}
+
+	result := colorblind.AccessiblePalette(colors, colorblind.Deuteranopia)
+	assert.Len(t, result, len(colors))
+	for _, c := range result {
+		assert.Equal(t, base.A8(), c.A8())
+	}
+}
+
+func TestMaxAccessiblePaletteAttemptsIsBounded(t *testing.T) {
+	assert.Greater(t, colorblind.MaxAccessiblePaletteAttempts, 0)
+	assert.LessOrEqual(t, colorblind.MaxAccessiblePaletteAttempts, 64)
 }
