@@ -216,6 +216,7 @@ type contrastResult struct {
 
 func newPreviewCommand(stdout io.Writer, opts *cliOptions) *cobra.Command {
 	var mode string
+	var nearestName bool
 	cmd := &cobra.Command{
 		Use:   "preview <color> [color...]",
 		Short: "Preview terminal color swatches",
@@ -233,10 +234,11 @@ func newPreviewCommand(stdout io.Writer, opts *cliOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printSwatches(stdout, opts.json, colors, colorMode)
+			return printSwatches(stdout, opts.json, colors, colorMode, nearestName)
 		},
 	}
 	cmd.Flags().StringVar(&mode, "color-mode", "auto", "color mode: auto, truecolor, 256")
+	cmd.Flags().BoolVar(&nearestName, "nearest-name", false, "include the nearest CSS named color")
 	return cmd
 }
 
@@ -253,11 +255,20 @@ func parseColorMode(mode string) (ansi.ColorMode, error) {
 	}
 }
 
-func printSwatches(w io.Writer, jsonOut bool, colors []golor.Color, mode ansi.ColorMode) error {
+func printSwatches(w io.Writer, jsonOut bool, colors []golor.Color, mode ansi.ColorMode, nearestName bool) error {
 	if jsonOut {
 		items := make([]swatchResult, len(colors))
 		for i, c := range colors {
-			items[i] = swatchResult{Hex: c.String(), Color: c, Index256: ansi.Nearest256(c)}
+			items[i] = swatchResult{
+				Hex:      c.String(),
+				Color:    c,
+				Index256: ansi.Nearest256(c),
+			}
+			if nearestName {
+				name, color := golor.NearestNamed(c)
+				items[i].NearestName = name
+				items[i].NearestColor = &color
+			}
 		}
 		return writeJSON(w, items)
 	}
@@ -266,7 +277,12 @@ func printSwatches(w io.Writer, jsonOut bool, colors []golor.Color, mode ansi.Co
 		if mode == ansi.Color256 {
 			bg = ansi.Background256(c)
 		}
-		if _, err := fmt.Fprintf(w, "%s  %s %s\n", bg, ansi.Reset, c.String()); err != nil {
+		label := c.String()
+		if nearestName {
+			name, _ := golor.NearestNamed(c)
+			label += " " + name
+		}
+		if _, err := fmt.Fprintf(w, "%s  %s %s\n", bg, ansi.Reset, label); err != nil {
 			return err
 		}
 	}
@@ -274,14 +290,17 @@ func printSwatches(w io.Writer, jsonOut bool, colors []golor.Color, mode ansi.Co
 }
 
 type swatchResult struct {
-	Hex      string      `json:"hex"`
-	Color    golor.Color `json:"color"`
-	Index256 int         `json:"index256"`
+	Hex          string       `json:"hex"`
+	Color        golor.Color  `json:"color"`
+	Index256     int          `json:"index256"`
+	NearestName  string       `json:"nearestName,omitempty"`
+	NearestColor *golor.Color `json:"nearestColor,omitempty"`
 }
 
 func newPaletteCommand(stdout io.Writer, opts *cliOptions) *cobra.Command {
 	var n int
 	var algorithm, mode string
+	var nearestName bool
 	cmd := &cobra.Command{
 		Use:   "palette <image>",
 		Short: "Extract a simple palette from an image",
@@ -303,17 +322,24 @@ func newPaletteCommand(stdout io.Writer, opts *cliOptions) *cobra.Command {
 				return err
 			}
 			if opts.json {
-				return writeJSON(stdout, map[string]any{
-					"algorithm": algorithm,
-					"colors":    colors,
-				})
+				items := make([]swatchResult, len(colors))
+				for i, c := range colors {
+					items[i] = swatchResult{Hex: c.String(), Color: c, Index256: ansi.Nearest256(c)}
+					if nearestName {
+						name, color := golor.NearestNamed(c)
+						items[i].NearestName = name
+						items[i].NearestColor = &color
+					}
+				}
+				return writeJSON(stdout, map[string]any{"algorithm": algorithm, "colors": items})
 			}
-			return printSwatches(stdout, false, colors, colorMode)
+			return printSwatches(stdout, false, colors, colorMode, nearestName)
 		},
 	}
 	cmd.Flags().IntVarP(&n, "n", "n", 5, "number of colors to extract")
 	cmd.Flags().StringVar(&algorithm, "algorithm", "median-cut", "palette algorithm: median-cut, kmeans, octree")
 	cmd.Flags().StringVar(&mode, "color-mode", "auto", "color mode: auto, truecolor, 256")
+	cmd.Flags().BoolVar(&nearestName, "nearest-name", false, "include the nearest CSS named color")
 	return cmd
 }
 

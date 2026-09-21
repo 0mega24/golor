@@ -58,6 +58,9 @@ func TestPreviewColorModes(t *testing.T) {
 	if !strings.Contains(stdout.String(), "\x1b[48;2;255;0;0m") {
 		t.Fatalf("truecolor preview output = %q", stdout.String())
 	}
+	if strings.Contains(stdout.String(), "red") {
+		t.Fatalf("truecolor preview should not include nearest CSS name by default, output = %q", stdout.String())
+	}
 
 	stdout.Reset()
 	stderr.Reset()
@@ -66,6 +69,32 @@ func TestPreviewColorModes(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "\x1b[48;5;9m") {
 		t.Fatalf("256 preview output = %q", stdout.String())
+	}
+}
+
+func TestPreviewJSONIncludesNearestName(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := execute(&stdout, &stderr, []string{"--json", "preview", "#ff6347", "--nearest-name"}); err != nil {
+		t.Fatalf("execute() error = %v, stderr = %s", err, stderr.String())
+	}
+	var got []struct {
+		NearestName string `json:"nearestName"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v; output = %s", err, stdout.String())
+	}
+	if len(got) != 1 || got[0].NearestName != "tomato" {
+		t.Fatalf("preview JSON = %+v", got)
+	}
+}
+
+func TestPreviewNearestNameOption(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := execute(&stdout, &stderr, []string{"preview", "#ff6347", "--nearest-name"}); err != nil {
+		t.Fatalf("execute() error = %v, stderr = %s", err, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "tomato") {
+		t.Fatalf("preview output should include nearest CSS name, output = %q", stdout.String())
 	}
 }
 
