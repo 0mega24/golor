@@ -134,6 +134,16 @@ func TestNamedCSSColors(t *testing.T) {
 	assert.Equal(t, golor.RGBA(0, 0, 0, 0), c)
 }
 
+func TestNearestNamed(t *testing.T) {
+	name, c := golor.NearestNamed(golor.RGBA(255, 98, 70, 12))
+	assert.Equal(t, "tomato", name)
+	assert.Equal(t, golor.RGB(255, 99, 71), c)
+
+	name, c = golor.NearestNamed(golor.RGB(102, 51, 153))
+	assert.Equal(t, "rebeccapurple", name)
+	assert.Equal(t, golor.RGB(102, 51, 153), c)
+}
+
 func TestCSSStringMethods(t *testing.T) {
 	assert.Equal(t, "rgb(255 0 0 / 0.502)", golor.RGBA(255, 0, 0, 128).CSSRGBString())
 	assert.Equal(t, "hsl(0 100% 50%)", golor.RGB(255, 0, 0).CSSHSLString())

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -129,6 +130,33 @@ func Named(name string) (Color, error) {
 	return c, nil
 }
 
+// NearestNamed returns the closest CSS named color to c by Euclidean RGB distance.
+// Alpha is ignored. Ties are resolved by name.
+func NearestNamed(c Color) (name string, color Color) {
+	names := make([]string, 0, len(namedColors))
+	for name := range namedColors {
+		if name == "transparent" {
+			continue
+		}
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	bestName := ""
+	bestColor := Color{}
+	bestDistance := math.Inf(1)
+	for _, name := range names {
+		named := namedColors[name]
+		distance := rgbDistanceSquared(c, named)
+		if distance < bestDistance {
+			bestName = name
+			bestColor = named
+			bestDistance = distance
+		}
+	}
+	return bestName, bestColor
+}
+
 func loadNamedColors() map[string]Color {
 	var raw map[string]string
 	if err := json.Unmarshal(namedColorsJSON, &raw); err != nil {
@@ -143,6 +171,13 @@ func loadNamedColors() map[string]Color {
 		colors[name] = c
 	}
 	return colors
+}
+
+func rgbDistanceSquared(a, b Color) float64 {
+	dr := a.R - b.R
+	dg := a.G - b.G
+	db := a.B - b.B
+	return dr*dr + dg*dg + db*db
 }
 
 // CSSRGBString returns c formatted as CSS rgb() or rgba() syntax.
