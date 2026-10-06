@@ -78,23 +78,36 @@ func TestDodgeBurnExtremeBehavior(t *testing.T) {
 	assertColor(t, black, blend.ColorBurn(gray, black), 1e-9)
 }
 
-func TestHSLBlendModes(t *testing.T) {
+// TestNonSeparableBlendModesW3C checks W3C Compositing Level 1 modes (Rec. 601 luma SetLum/SetSat),
+// matching CSS mix-blend-mode. Expected values are calculated from the specification formulas.
+func TestNonSeparableBlendModesW3C(t *testing.T) {
+	// Hue(red, blue) = SetLum(SetSat(blue, 1), Lum(red)=0.3); ClipColor pulls B back to 1.
 	hue := blend.Hue(red, blue)
-	assert.InDelta(t, 0, hue.R, 1e-6)
-	assert.InDelta(t, 0, hue.G, 1e-6)
-	assert.InDelta(t, 1, hue.B, 1e-6)
+	k := 0.7 / 0.89
+	assertColor(t, golor.RGBf(0.3-0.11*k, 0.3-0.11*k, 1), hue, 1e-9)
 
 	saturation := blend.Saturation(golor.RGBf(0.25, 0.5, 0.75), gray)
 	assert.InDelta(t, saturation.R, saturation.G, 1e-6)
 	assert.InDelta(t, saturation.G, saturation.B, 1e-6)
 
+	// Color(0.2 grey, green) = SetLum(green, 0.2) = clip((-0.39, 0.61, -0.39)).
 	color := blend.Color(golor.RGBf(0.2, 0.2, 0.2), green)
-	assert.InDelta(t, 0, color.R, 1e-6)
-	assert.InDelta(t, 0.4, color.G, 1e-6)
-	assert.InDelta(t, 0, color.B, 1e-6)
+	assertColor(t, golor.RGBf(0, 0.2+0.41*0.2/0.59, 0), color, 1e-9)
 
 	luminosity := blend.Luminosity(red, white)
-	assert.Greater(t, luminosity.R+luminosity.G+luminosity.B, 2.0)
+	assertColor(t, white, luminosity, 1e-9)
+
+	// Regression case: HSL produces #3769cd; W3C produces #a4c3ff.
+	assert.Equal(t, "#a4c3ff", blend.Luminosity(golor.RGB(0x32, 0x64, 0xc8), golor.RGB(0xf0, 0xc8, 0x14)).String())
+	assert.Equal(t, "#7b6400", blend.Color(golor.RGB(0x32, 0x64, 0xc8), golor.RGB(0xf0, 0xc8, 0x14)).String())
+
+	// Every non-separable mode preserves the specified luminosity.
+	lum := func(c golor.Color) float64 { return 0.3*c.R + 0.59*c.G + 0.11*c.B }
+	b, l := golor.RGBf(0.3, 0.6, 0.2), golor.RGBf(0.9, 0.1, 0.5)
+	assert.InDelta(t, lum(l), lum(blend.Luminosity(b, l)), 1e-9)
+	assert.InDelta(t, lum(b), lum(blend.Color(b, l)), 1e-9)
+	assert.InDelta(t, lum(b), lum(blend.Hue(b, l)), 1e-9)
+	assert.InDelta(t, lum(b), lum(blend.Saturation(b, l)), 1e-9)
 }
 
 func TestPorterDuffAlphaScenarios(t *testing.T) {
@@ -109,10 +122,41 @@ func TestPorterDuffAlphaScenarios(t *testing.T) {
 	layer = golor.RGBA(64, 128, 255, 128)
 	screen := blend.Screen(base, layer)
 	opaqueScreen := blend.Screen(golor.RGBA(base.R8(), base.G8(), base.B8(), 255), golor.RGBA(layer.R8(), layer.G8(), layer.B8(), 255))
-	assert.InDelta(t, 0.5+base.A*(1-0.5), screen.A, 1.0/255)
-	assert.InDelta(t, base.R+layer.A*(opaqueScreen.R-base.R), screen.R, 1e-6)
-	assert.InDelta(t, base.G+layer.A*(opaqueScreen.G-base.G), screen.G, 1e-6)
-	assert.InDelta(t, base.B+layer.A*(opaqueScreen.B-base.B), screen.B, 1e-6)
+	ab, as := base.A, layer.A
+	ao := as + ab*(1-as)
+	assert.InDelta(t, ao, screen.A, 1e-9)
+	w3c := func(cb, cs, b float64) float64 { return (as*((1-ab)*cs+ab*b) + ab*cb*(1-as)) / ao }
+	assert.InDelta(t, w3c(base.R, layer.R, opaqueScreen.R), screen.R, 1e-9)
+	assert.InDelta(t, w3c(base.G, layer.G, opaqueScreen.G), screen.G, 1e-9)
+	assert.InDelta(t, w3c(base.B, layer.B, opaqueScreen.B), screen.B, 1e-9)
+}
+
+func TestBlendOverTransparentBackdropReturnsLayer(t *testing.T) {
+	clear := golor.RGBA(0, 0, 0, 0)
+	halfRed := golor.RGBA(255, 0, 0, 128)
+	for name, fn := range allPorterDuffBlendModes() {
+		t.Run(name, func(t *testing.T) {
+			assertColor(t, red, fn(clear, red), 1e-9)
+			assert.Equal(t, "#ff000080", fn(clear, halfRed).String())
+		})
+	}
+}
+
+func TestBlendOpaqueUnchangedByAlphaModel(t *testing.T) {
+	// For opaque layers over opaque backdrops, the W3C model reduces to B(Cb, Cs).
+	base, layer := golor.RGBf(0.25, 0.5, 0.75), golor.RGBf(0.75, 0.5, 0.25)
+	assertColor(t, golor.RGBf(0.1875, 0.25, 0.1875), blend.Multiply(base, layer), 1e-12)
+	// Opaque backdrop, half-transparent layer: base + αs·(B - base).
+	half := golor.RGBAf(0.75, 0.5, 0.25, 0.5)
+	assertColor(t, golor.RGBf(0.25+0.5*(0.1875-0.25), 0.5+0.5*(0.25-0.5), 0.75+0.5*(0.1875-0.75)), blend.Multiply(base, half), 1e-12)
+}
+
+func TestMixPremultiplied(t *testing.T) {
+	clear := golor.RGBA(0, 0, 0, 0)
+	assert.Equal(t, "#ffffff80", blend.Mix(clear, white, 0.5).String())
+	assert.Equal(t, "#ff000080", blend.Mix(golor.RGBA(0, 0, 255, 0), red, 0.5).String())
+	assert.Equal(t, golor.RGBAf(0, 0, 0, 0), blend.Mix(clear, golor.RGBA(255, 255, 255, 0), 0.5))
+	assert.Equal(t, black, blend.Mix(black, white, math.NaN()))
 }
 
 func TestNoBlendModeLeaksInvalidChannels(t *testing.T) {
