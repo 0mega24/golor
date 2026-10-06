@@ -3,10 +3,13 @@ package palette_test
 import (
 	"image"
 	stdcolor "image/color"
+	"math"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/convert"
 	"github.com/0mega24/golor/v2/palette"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -75,4 +78,39 @@ func TestGenericImageType(t *testing.T) {
 	got := palette.Extract(gray, 3)
 	require.Len(t, got, 3)
 	assert.Equal(t, palette.Extract(img, 4), palette.Extract(img.SubImage(img.Bounds()), 4))
+}
+
+func TestAlgorithmsRecoverQuadrantColors(t *testing.T) {
+	img, base := quadrants(128)
+	for _, a := range algorithms {
+		got := palette.Extract(img, 4, palette.WithAlgorithm(a.algo))
+		require.Len(t, got, 4, a.name)
+		for _, want := range base {
+			best := math.Inf(1)
+			for _, c := range got {
+				best = math.Min(best, convert.DeltaEOK(c, want))
+			}
+			assert.Less(t, best, 0.02, "%s: no extracted color near %s (got %v)", a.name, want, got)
+		}
+	}
+}
+
+func TestOctreeLevelBoundary(t *testing.T) {
+	img := noise(256, 256)
+	start := time.Now()
+	got := palette.Extract(img, 520, palette.WithAlgorithm(palette.Octree))
+	assert.Len(t, got, 520)
+	// O(B^3) merging takes ~15s; the current implementation takes about 0.1s. The bound allows for slow CI.
+	assert.Less(t, time.Since(start), 10*time.Second)
+	again := palette.Extract(img, 520, palette.WithAlgorithm(palette.Octree))
+	assert.Equal(t, got, again)
+}
+
+func TestExtractReturnsExactlyNWhenPossible(t *testing.T) {
+	img := noise(64, 64)
+	for _, a := range algorithms {
+		for _, n := range []int{1, 7, 64, 300} {
+			assert.Len(t, palette.Extract(img, n, palette.WithAlgorithm(a.algo)), n, "%s n=%d", a.name, n)
+		}
+	}
 }
