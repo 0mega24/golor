@@ -4,49 +4,35 @@ import (
 	"math"
 
 	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/internal/space"
 )
 
 // HSV represents a color in hue-saturation-value space.
-// H is in [0, 360), S and V are in [0, 1].
+// H is in [0, 360); S and V are in [0, 1]. Greys have S = 0 and H = 0.
 type HSV struct{ H, S, V float64 }
+
+// IsAchromatic reports whether the color is grey, in which case its hue has no effect.
+func (hsv HSV) IsAchromatic() bool { return hsv.S < 1e-12 }
 
 // ToHSV converts an sRGB Color to HSV.
 func ToHSV(c golor.Color) HSV {
-	r, g, b := c.R, c.G, c.B
+	r, g, b := channels(c)
 	max := math.Max(r, math.Max(g, b))
 	min := math.Min(r, math.Min(g, b))
 	delta := max - min
-
-	v := max
-	var s, h float64
-	if max != 0 {
-		s = delta / max
-	}
 	if delta == 0 {
-		return HSV{0, s, v}
+		return HSV{0, 0, max}
 	}
-	switch max {
-	case r:
-		h = (g - b) / delta
-		if g < b {
-			h += 6
-		}
-	case g:
-		h = (b-r)/delta + 2
-	default:
-		h = (r-g)/delta + 4
-	}
-	h *= 60
-	return HSV{h, s, v}
+	return HSV{hue(r, g, b, max, delta), delta / max, max}
 }
 
-// FromHSV converts HSV to an sRGB Color.
+// FromHSV converts HSV to an sRGB Color. H may be any angle (it is wrapped into
+// [0, 360)); S and V are clamped to [0, 1].
 func FromHSV(hsv HSV) golor.Color {
-	h, s, v := hsv.H, hsv.S, hsv.V
+	h, s, v := space.NormalizeHue(hsv.H)/60, space.Clamp01(hsv.S), space.Clamp01(hsv.V)
 	if s == 0 {
 		return golor.RGBf(v, v, v)
 	}
-	h = math.Mod(h, 360) / 60
 	i := math.Floor(h)
 	f := h - i
 	p := v * (1 - s)
