@@ -123,6 +123,11 @@ type swatch struct {
 	count int
 }
 
+func newSwatch(c golor.Color, count int) swatch {
+	return swatch{color: c, key: colorKey(c), count: count}
+}
+
+// imageSwatches counts distinct 8-bit colors in img and returns them in ascending key order.
 func imageSwatches(img image.Image, minAlpha uint8) []swatch {
 	if img == nil {
 		return nil
@@ -287,29 +292,4 @@ func nearestCentroid(c golor.Color, centroids []golor.Color) int {
 
 func seededRand(seed int64) *rand.Rand {
 	return rand.New(rand.NewSource(seed)) // #nosec G404 -- deterministic k-means seeding, not security randomness.
-}
-
-func weightedAverage(swatches []swatch) golor.Color {
-	var r, g, b, a float64
-	var total int
-	for _, s := range swatches {
-		weight := float64(s.count)
-		r += s.color.R * weight
-		g += s.color.G * weight
-		b += s.color.B * weight
-		a += s.color.A * weight
-		total += s.count
-	}
-	if total == 0 {
-		return golor.RGBAf(0, 0, 0, 0)
-	}
-	return golor.RGBAf(r/float64(total), g/float64(total), b/float64(total), a/float64(total))
-}
-
-func totalCount(swatches []swatch) int {
-	total := 0
-	for _, s := range swatches {
-		total += s.count
-	}
-	return total
 }
