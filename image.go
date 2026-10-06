@@ -5,7 +5,7 @@ import (
 	stdcolor "image/color"
 )
 
-// ImagePixels extracts every pixel from img as Colors in row-major order.
+// ImagePixels extracts row-major colors, using direct NRGBA/RGBA reads that match FromStdColor.
 func ImagePixels(img image.Image) []Color {
 	if img == nil {
 		return nil
@@ -16,12 +16,43 @@ func ImagePixels(img image.Image) []Color {
 		return nil
 	}
 	pixels := make([]Color, 0, width*height)
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			pixels = append(pixels, FromStdColor(img.At(x, y)))
+	switch src := img.(type) {
+	case *image.NRGBA:
+		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+			row := src.Pix[src.PixOffset(bounds.Min.X, y):]
+			for i := 0; i < width*4; i += 4 {
+				if row[i+3] == 0 {
+					pixels = append(pixels, Color{})
+					continue
+				}
+				pixels = append(pixels, RGBA(row[i], row[i+1], row[i+2], row[i+3]))
+			}
+		}
+	case *image.RGBA:
+		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+			row := src.Pix[src.PixOffset(bounds.Min.X, y):]
+			for i := 0; i < width*4; i += 4 {
+				pixels = append(pixels, fromPremultiplied8(row[i], row[i+1], row[i+2], row[i+3]))
+			}
+		}
+	default:
+		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+				pixels = append(pixels, FromStdColor(img.At(x, y)))
+			}
 		}
 	}
 	return pixels
+}
+
+// fromPremultiplied8 matches FromStdColor(color.RGBA{r, g, b, a}) exactly: scaling both
+// numerator and denominator by 0x101 does not change a correctly rounded quotient.
+func fromPremultiplied8(r, g, b, a uint8) Color {
+	if a == 0 {
+		return Color{}
+	}
+	fa := float64(a)
+	return RGBAf(float64(r)/fa, float64(g)/fa, float64(b)/fa, fa/255)
 }
 
 // NewNRGBA creates an *image.NRGBA from pixels in row-major order.
@@ -45,13 +76,15 @@ func PaintPixels(dst *image.NRGBA, pixels []Color) {
 		return
 	}
 	bounds := dst.Bounds()
+	width := bounds.Dx()
 	i := 0
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+		row := dst.Pix[dst.PixOffset(bounds.Min.X, y):]
+		for x := 0; x < width; x++ {
 			if i >= len(pixels) {
 				return
 			}
-			dst.SetNRGBA(x, y, pixels[i].NRGBA())
+			putNRGBA(row[x*4:], pixels[i].NRGBA())
 			i++
 		}
 	}
@@ -63,12 +96,18 @@ func Fill(dst *image.NRGBA, c Color) {
 		return
 	}
 	bounds := dst.Bounds()
+	width := bounds.Dx()
 	nrgba := c.NRGBA()
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			dst.SetNRGBA(x, y, nrgba)
+		row := dst.Pix[dst.PixOffset(bounds.Min.X, y):]
+		for x := 0; x < width; x++ {
+			putNRGBA(row[x*4:], nrgba)
 		}
 	}
+}
+
+func putNRGBA(p []uint8, c stdcolor.NRGBA) {
+	p[0], p[1], p[2], p[3] = c.R, c.G, c.B, c.A
 }
 
 // NRGBA returns c as an unpremultiplied standard library color.NRGBA value.
