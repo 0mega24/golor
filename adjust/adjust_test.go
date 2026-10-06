@@ -10,72 +10,69 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func hslOf(c golor.Color) convert.HSL { return convert.ToHSL(c) }
-func hsvOf(c golor.Color) convert.HSV { return convert.ToHSV(c) }
-
 func TestLighten(t *testing.T) {
 	c := golor.RGB(100, 100, 100)
-	before := hslOf(c).L
-	after := hslOf(adjust.Lighten(c, 0.2)).L
+	before := convert.ToHSL(c).L
+	after := convert.ToHSL(adjust.Lighten(c, 0.2)).L
 	assert.InDelta(t, before+0.2, after, 1e-6)
 }
 
 func TestDarken(t *testing.T) {
 	c := golor.RGB(200, 200, 200)
-	before := hslOf(c).L
-	after := hslOf(adjust.Darken(c, 0.2)).L
+	before := convert.ToHSL(c).L
+	after := convert.ToHSL(adjust.Darken(c, 0.2)).L
 	assert.InDelta(t, before-0.2, after, 1e-6)
 }
 
 func TestSetLightness(t *testing.T) {
 	c := golor.RGB(100, 150, 200)
 	result := adjust.SetLightness(c, 0.7)
-	assert.InDelta(t, 0.7, hslOf(result).L, 1e-6)
+	assert.InDelta(t, 0.7, convert.ToHSL(result).L, 1e-6)
 }
 
 func TestLightenClamps(t *testing.T) {
 	white := golor.RGB(255, 255, 255)
 	result := adjust.Lighten(white, 0.5)
-	assert.InDelta(t, 1.0, hslOf(result).L, 1e-6)
+	assert.InDelta(t, 1.0, convert.ToHSL(result).L, 1e-6)
 }
 
 func TestSaturate(t *testing.T) {
 	c := golor.RGB(100, 150, 200)
-	before := hslOf(c).S
+	before := convert.ToHSL(c).S
 	result := adjust.Saturate(c, 0.2)
-	assert.InDelta(t, min01(before+0.2), hslOf(result).S, 1e-6)
+	assert.InDelta(t, min01(before+0.2), convert.ToHSL(result).S, 1e-6)
 }
 
 func TestDesaturate(t *testing.T) {
 	c := golor.RGB(100, 150, 200)
-	before := hslOf(c).S
+	before := convert.ToHSL(c).S
 	result := adjust.Desaturate(c, 0.1)
-	assert.InDelta(t, max0(before-0.1), hslOf(result).S, 1e-6)
+	assert.InDelta(t, max0(before-0.1), convert.ToHSL(result).S, 1e-6)
 }
 
 func TestSetSaturation(t *testing.T) {
 	c := golor.RGB(100, 150, 200)
 	result := adjust.SetSaturation(c, 0.5)
-	assert.InDelta(t, 0.5, hslOf(result).S, 1e-6)
+	assert.InDelta(t, 0.5, convert.ToHSL(result).S, 1e-6)
 }
 
 func TestShiftHue(t *testing.T) {
 	c := golor.RGB(255, 0, 0) // hue ~0°
 	result := adjust.ShiftHue(c, 180)
-	hue := hslOf(result).H
+	hue := convert.ToHSL(result).H
 	assert.InDelta(t, 180.0, hue, 1.0)
 }
 
 func TestSetHue(t *testing.T) {
 	c := golor.RGB(255, 0, 0)
 	result := adjust.SetHue(c, 120)
-	assert.InDelta(t, 120.0, hslOf(result).H, 1.0)
+	assert.InDelta(t, 120.0, convert.ToHSL(result).H, 1.0)
 }
 
 func TestSetValue(t *testing.T) {
 	c := golor.RGB(200, 100, 50)
 	result := adjust.SetValue(c, 0.3)
-	assert.InDelta(t, 0.3, hsvOf(result).V, 1e-6)
+	assert.InDelta(t, 0.3, convert.ToHSV(result).V, 1e-6)
 }
 
 func TestTint(t *testing.T) {
@@ -97,9 +94,9 @@ func TestShade(t *testing.T) {
 func TestWarm(t *testing.T) {
 	// A blue color; warming should move hue toward orange
 	blue := golor.RGB(0, 0, 255)
-	before := hslOf(blue).H
+	before := convert.ToHSL(blue).H
 	result := adjust.Warm(blue, 0.5)
-	after := hslOf(result).H
+	after := convert.ToHSL(result).H
 	// Hue should have moved toward 30°
 	target := 30.0
 	distBefore := hueDist(before, target)
@@ -109,9 +106,9 @@ func TestWarm(t *testing.T) {
 
 func TestCool(t *testing.T) {
 	red := golor.RGB(255, 0, 0)
-	before := hslOf(red).H
+	before := convert.ToHSL(red).H
 	result := adjust.Cool(red, 0.5)
-	after := hslOf(result).H
+	after := convert.ToHSL(result).H
 	target := 210.0
 	distBefore := hueDist(before, target)
 	distAfter := hueDist(after, target)
