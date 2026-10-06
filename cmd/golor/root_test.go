@@ -67,7 +67,7 @@ func TestPreviewColorModes(t *testing.T) {
 	if err := execute(&stdout, &stderr, []string{"preview", "#ff0000", "--color-mode", "256"}); err != nil {
 		t.Fatalf("execute() error = %v, stderr = %s", err, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "\x1b[48;5;9m") {
+	if !strings.Contains(stdout.String(), "\x1b[48;5;196m") {
 		t.Fatalf("256 preview output = %q", stdout.String())
 	}
 }
