@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func hue(c golor.Color) float64 { return convert.ToHSL(c).H }
-
 func hueDist(h1, h2 float64) float64 {
 	d := math.Abs(h1 - h2)
 	if d > 180 {
@@ -23,34 +21,34 @@ func hueDist(h1, h2 float64) float64 {
 func TestComplementary(t *testing.T) {
 	red := golor.RGB(255, 0, 0)
 	pair := harmony.Complementary(red)
-	assert.InDelta(t, 180.0, hueDist(hue(pair[0]), hue(pair[1])), 1.0)
+	assert.InDelta(t, 180.0, hueDist(convert.ToHSL(pair[0]).H, convert.ToHSL(pair[1]).H), 1.0)
 }
 
 func TestTriadic(t *testing.T) {
 	red := golor.RGB(255, 0, 0)
 	trio := harmony.Triadic(red)
-	assert.InDelta(t, 120.0, hueDist(hue(trio[0]), hue(trio[1])), 1.0)
-	assert.InDelta(t, 120.0, hueDist(hue(trio[1]), hue(trio[2])), 1.0)
+	assert.InDelta(t, 120.0, hueDist(convert.ToHSL(trio[0]).H, convert.ToHSL(trio[1]).H), 1.0)
+	assert.InDelta(t, 120.0, hueDist(convert.ToHSL(trio[1]).H, convert.ToHSL(trio[2]).H), 1.0)
 }
 
 func TestAnalogous(t *testing.T) {
 	red := golor.RGB(255, 0, 0)
 	trio := harmony.Analogous(red, 30)
-	assert.InDelta(t, 30.0, hueDist(hue(trio[0]), hue(trio[1])), 1.0)
-	assert.InDelta(t, 30.0, hueDist(hue(trio[1]), hue(trio[2])), 1.0)
+	assert.InDelta(t, 30.0, hueDist(convert.ToHSL(trio[0]).H, convert.ToHSL(trio[1]).H), 1.0)
+	assert.InDelta(t, 30.0, hueDist(convert.ToHSL(trio[1]).H, convert.ToHSL(trio[2]).H), 1.0)
 }
 
 func TestTetradic(t *testing.T) {
 	red := golor.RGB(255, 0, 0)
 	quad := harmony.Tetradic(red)
-	assert.InDelta(t, 90.0, hueDist(hue(quad[0]), hue(quad[1])), 1.0)
+	assert.InDelta(t, 90.0, hueDist(convert.ToHSL(quad[0]).H, convert.ToHSL(quad[1]).H), 1.0)
 }
 
 func TestSplitComplementary(t *testing.T) {
 	red := golor.RGB(255, 0, 0)
 	trio := harmony.SplitComplementary(red)
-	assert.InDelta(t, 150.0, hueDist(hue(trio[0]), hue(trio[1])), 1.0)
-	assert.InDelta(t, 150.0, hueDist(hue(trio[0]), hue(trio[2])), 1.0)
+	assert.InDelta(t, 150.0, hueDist(convert.ToHSL(trio[0]).H, convert.ToHSL(trio[1]).H), 1.0)
+	assert.InDelta(t, 150.0, hueDist(convert.ToHSL(trio[0]).H, convert.ToHSL(trio[2]).H), 1.0)
 }
 
 func TestExpand(t *testing.T) {
