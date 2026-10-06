@@ -6,7 +6,8 @@ import (
 	"github.com/0mega24/golor/v2/adjust"
 )
 
-// Chain holds a color and allows fluent multi-step transformations.
+// Chain holds a color; methods mutate it and return the same pointer.
+// Use Clone before branching transformations.
 type Chain struct {
 	c golor.Color
 }
@@ -14,6 +15,11 @@ type Chain struct {
 // From creates a new Chain starting from c.
 func From(c golor.Color) *Chain {
 	return &Chain{c: c}
+}
+
+// Clone returns an independent copy of the chain for branching.
+func (ch *Chain) Clone() *Chain {
+	return &Chain{c: ch.c}
 }
 
 // Color unwraps the current color from the chain.
@@ -103,5 +109,35 @@ func (ch *Chain) SetValue(v float64) *Chain {
 // The current color is used as the base.
 func (ch *Chain) Mix(other golor.Color, mode func(golor.Color, golor.Color) golor.Color) *Chain {
 	ch.c = mode(ch.c, other)
+	return ch
+}
+
+// LightenOKLCH increases OKLCH lightness by amount (perceptually even across hues).
+func (ch *Chain) LightenOKLCH(amount float64) *Chain {
+	ch.c = adjust.LightenOKLCH(ch.c, amount)
+	return ch
+}
+
+// DarkenOKLCH decreases OKLCH lightness by amount.
+func (ch *Chain) DarkenOKLCH(amount float64) *Chain {
+	ch.c = adjust.DarkenOKLCH(ch.c, amount)
+	return ch
+}
+
+// SaturateOKLCH increases OKLCH chroma by amount × 0.4.
+func (ch *Chain) SaturateOKLCH(amount float64) *Chain {
+	ch.c = adjust.SaturateOKLCH(ch.c, amount)
+	return ch
+}
+
+// DesaturateOKLCH decreases OKLCH chroma by amount × 0.4.
+func (ch *Chain) DesaturateOKLCH(amount float64) *Chain {
+	ch.c = adjust.DesaturateOKLCH(ch.c, amount)
+	return ch
+}
+
+// ShiftHueOKLCH rotates the OKLCH hue by degrees.
+func (ch *Chain) ShiftHueOKLCH(degrees float64) *Chain {
+	ch.c = adjust.ShiftHueOKLCH(ch.c, degrees)
 	return ch
 }

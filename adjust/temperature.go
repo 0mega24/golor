@@ -3,6 +3,8 @@ package adjust
 import (
 	"math"
 
+	"github.com/0mega24/golor/v2/internal/space"
+
 	"github.com/0mega24/golor/v2"
 	"github.com/0mega24/golor/v2/convert"
 )
@@ -28,7 +30,7 @@ func shiftToward(c golor.Color, targetDeg, amount float64) golor.Color {
 	for diff < -180 {
 		diff += 360
 	}
-	hsl.H = math.Mod(hsl.H+diff*clamp01(amount)+360*10, 360)
+	hsl.H = math.Mod(hsl.H+diff*space.Clamp01(amount)+360*10, 360)
 	out := convert.FromHSL(hsl)
 	out.A = c.A
 	return out

@@ -64,3 +64,17 @@ func TestChainWarmCool(t *testing.T) {
 	_ = warmed
 	_ = cooled
 }
+
+func TestChainCloneBranches(t *testing.T) {
+	base := transform.From(golor.RGB(100, 100, 200))
+	light := base.Clone().Lighten(0.2).Color()
+	dark := base.Clone().Darken(0.2).Color()
+	assert.NotEqual(t, light, dark)
+	assert.Equal(t, golor.RGB(100, 100, 200), base.Color())
+}
+
+func TestChainOKLCH(t *testing.T) {
+	c := golor.RGB(40, 120, 200)
+	got := transform.From(c).LightenOKLCH(0.1).DarkenOKLCH(0.1).SaturateOKLCH(0.05).DesaturateOKLCH(0.05).ShiftHueOKLCH(360).Color()
+	assert.Equal(t, c.String(), got.String())
+}
