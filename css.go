@@ -9,6 +9,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/0mega24/golor/v2/internal/space"
+
 	_ "embed"
 )
 
@@ -185,7 +187,7 @@ func (c Color) CSSRGBString() string {
 	if c.A8() == 255 {
 		return fmt.Sprintf("rgb(%d %d %d)", c.R8(), c.G8(), c.B8())
 	}
-	return fmt.Sprintf("rgb(%d %d %d / %.3g)", c.R8(), c.G8(), c.B8(), clamp01(c.A))
+	return fmt.Sprintf("rgb(%d %d %d / %.3g)", c.R8(), c.G8(), c.B8(), space.Clamp01(c.A))
 }
 
 // CSSHSLString returns c formatted as CSS hsl() syntax.
@@ -194,7 +196,7 @@ func (c Color) CSSHSLString() string {
 	if c.A8() == 255 {
 		return fmt.Sprintf("hsl(%.3g %.3g%% %.3g%%)", h, s*100, l*100)
 	}
-	return fmt.Sprintf("hsl(%.3g %.3g%% %.3g%% / %.3g)", h, s*100, l*100, clamp01(c.A))
+	return fmt.Sprintf("hsl(%.3g %.3g%% %.3g%% / %.3g)", h, s*100, l*100, space.Clamp01(c.A))
 }
 
 func cssFunction(s string) (name, body string, err error) {
