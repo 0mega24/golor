@@ -1,7 +1,4 @@
-// Package ansi generates ANSI terminal escape codes for golor colors.
-//
-// It does not write to stdout or stderr; callers compose the returned strings
-// into their own terminal, CLI, or TUI output.
+// Package ansi returns ANSI escape sequences without writing to a terminal.
 package ansi
 
 import (
@@ -75,61 +72,45 @@ func DetectColorMode() ColorMode {
 	return Color256
 }
 
-// Nearest256 returns the closest xterm-256 palette index to c using Euclidean RGB distance.
+// Nearest256 finds the nearest xterm-256 cube/grey entry by RGB distance.
+// Theme-dependent indexes 0-15 are excluded.
 func Nearest256(c golor.Color) int {
 	r, g, b := int(c.R8()), int(c.G8()), int(c.B8())
-	bestIndex := 0
-	bestDistance := 1 << 62
-	for i := 0; i < 256; i++ {
-		pr, pg, pb := xterm256RGB(i)
-		distance := square(r-pr) + square(g-pg) + square(b-pb)
-		if distance < bestDistance {
-			bestDistance = distance
-			bestIndex = i
+	ri, gi, bi := nearestCube(r), nearestCube(g), nearestCube(b)
+	cubeIndex := 16 + 36*ri + 6*gi + bi
+	cubeDist := square(r-colorCube[ri]) + square(g-colorCube[gi]) + square(b-colorCube[bi])
+
+	// The closest grey level to (r,g,b) is nearest to their mean.
+	k := min(max((r+g+b-24+15)/30, 0), 23)
+	grayIndex, grayDist := 0, 1<<62
+	for _, kk := range []int{k - 1, k, k + 1} {
+		if kk < 0 || kk > 23 {
+			continue
+		}
+		v := 8 + 10*kk
+		if d := square(r-v) + square(g-v) + square(b-v); d < grayDist {
+			grayIndex, grayDist = 232+kk, d
 		}
 	}
-	return bestIndex
+	if grayDist < cubeDist {
+		return grayIndex
+	}
+	return cubeIndex
+}
+
+// nearestCube returns the index of the cube level closest to v, breaking ties with the lower level.
+func nearestCube(v int) int {
+	best, bestDist := 0, 1<<62
+	for i, level := range colorCube {
+		if d := square(v - level); d < bestDist {
+			best, bestDist = i, d
+		}
+	}
+	return best
 }
 
 func square(v int) int {
 	return v * v
 }
 
-func xterm256RGB(index int) (r, g, b int) {
-	if index < 0 {
-		index = 0
-	}
-	if index > 255 {
-		index = 255
-	}
-	if index < 16 {
-		return standard16[index][0], standard16[index][1], standard16[index][2]
-	}
-	if index < 232 {
-		i := index - 16
-		return colorCube[i/36], colorCube[(i/6)%6], colorCube[i%6]
-	}
-	gray := 8 + (index-232)*10
-	return gray, gray, gray
-}
-
 var colorCube = [6]int{0, 95, 135, 175, 215, 255}
-
-var standard16 = [16][3]int{
-	{0, 0, 0},
-	{128, 0, 0},
-	{0, 128, 0},
-	{128, 128, 0},
-	{0, 0, 128},
-	{128, 0, 128},
-	{0, 128, 128},
-	{192, 192, 192},
-	{128, 128, 128},
-	{255, 0, 0},
-	{0, 255, 0},
-	{255, 255, 0},
-	{0, 0, 255},
-	{255, 0, 255},
-	{0, 255, 255},
-	{255, 255, 255},
-}

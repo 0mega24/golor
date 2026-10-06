@@ -19,19 +19,19 @@ func TestTruecolorEscapes(t *testing.T) {
 
 func TestNearest256AndEscapes(t *testing.T) {
 	red := golor.RGB(255, 0, 0)
-	if got := ansi.Nearest256(red); got != 9 {
-		t.Fatalf("Nearest256(red) = %d, want 9", got)
+	if got := ansi.Nearest256(red); got != 196 {
+		t.Fatalf("Nearest256(red) = %d, want 196 (cube red, not theme-defined 9)", got)
 	}
-	if got := ansi.Foreground256(red); got != "\x1b[38;5;9m" {
+	if got := ansi.Foreground256(red); got != "\x1b[38;5;196m" {
 		t.Fatalf("Foreground256(red) = %q", got)
 	}
-	if got := ansi.Background256(red); got != "\x1b[48;5;9m" {
+	if got := ansi.Background256(red); got != "\x1b[48;5;196m" {
 		t.Fatalf("Background256(red) = %q", got)
 	}
 
 	white := golor.RGB(255, 255, 255)
-	if got := ansi.Nearest256(white); got != 15 {
-		t.Fatalf("Nearest256(white) = %d, want 15", got)
+	if got := ansi.Nearest256(white); got != 231 {
+		t.Fatalf("Nearest256(white) = %d, want 231", got)
 	}
 	gray := golor.RGB(238, 238, 238)
 	if got := ansi.Nearest256(gray); got < 232 {
@@ -79,3 +79,55 @@ func ExampleBackground() {
 	red := golor.RGB(255, 0, 0)
 	_ = ansi.Background(red) + "  " + ansi.Reset
 }
+
+// TestNearest256MatchesBruteForce checks Nearest256 against a brute-force search over indexes 16-255.
+func TestNearest256MatchesBruteForce(t *testing.T) {
+	step := 5
+	for r := 0; r < 256; r += step {
+		for g := 0; g < 256; g += step {
+			for b := 0; b < 256; b += 3 {
+				c := golor.RGB(uint8(r), uint8(g), uint8(b))
+				best, bestD := 0, 1<<62
+				for i := 16; i < 256; i++ {
+					pr, pg, pb := paletteRGB(i)
+					if d := (r-pr)*(r-pr) + (g-pg)*(g-pg) + (b-pb)*(b-pb); d < bestD {
+						best, bestD = i, d
+					}
+				}
+				if got := ansi.Nearest256(c); got != best {
+					t.Fatalf("Nearest256(%s) = %d, want %d", c, got, best)
+				}
+			}
+		}
+	}
+}
+
+func paletteRGB(i int) (int, int, int) {
+	cube := [6]int{0, 95, 135, 175, 215, 255}
+	if i < 232 {
+		i -= 16
+		return cube[i/36], cube[(i/6)%6], cube[i%6]
+	}
+	v := 8 + (i-232)*10
+	return v, v, v
+}
+
+func BenchmarkNearest256(b *testing.B) {
+	c := golor.RGB(200, 100, 50)
+	for i := 0; i < b.N; i++ {
+		sinkIndex = ansi.Nearest256(c)
+	}
+}
+
+func BenchmarkForeground(b *testing.B) {
+	c := golor.RGB(200, 100, 50)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		sinkString = ansi.Foreground(c)
+	}
+}
+
+var (
+	sinkIndex  int
+	sinkString string
+)
