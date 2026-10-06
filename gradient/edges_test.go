@@ -14,6 +14,7 @@ type gradFn func(a, b golor.Color, n int) []golor.Color
 var allSpaces = map[string]gradFn{
 	"RGB": gradient.RGB, "HSL": gradient.HSL, "LAB": gradient.LAB,
 	"LCH": gradient.LCH, "OKLab": gradient.OKLab, "OKLCH": gradient.OKLCH,
+	"HSV": gradient.HSV, "LinearRGB": gradient.LinearRGB,
 }
 
 func hueDist(a, b float64) float64 {
@@ -33,6 +34,7 @@ func TestAchromaticEndpointBorrowsHue(t *testing.T) {
 		}{
 			"LCH":   {gradient.LCH, func(c golor.Color) (float64, bool) { l := convert.ToLCH(c); return l.H, l.C > 3 }},
 			"OKLCH": {gradient.OKLCH, func(c golor.Color) (float64, bool) { l := convert.ToOKLCH(c); return l.H, l.C > 0.02 }},
+			"HSV":   {gradient.HSV, func(c golor.Color) (float64, bool) { h := convert.ToHSV(c); return h.H, h.S > 0.05 }},
 			"HSL":   {gradient.HSL, func(c golor.Color) (float64, bool) { h := convert.ToHSL(c); return h.H, h.S > 0.05 }},
 		}
 		for name, sp := range spaces {
@@ -117,6 +119,7 @@ func TestMultiStopMatchesPairwise(t *testing.T) {
 	for _, fn := range []func([]golor.Color, int) []golor.Color{
 		gradient.MultiStopRGB, gradient.MultiStopHSL, gradient.MultiStopLAB,
 		gradient.MultiStopLCH, gradient.MultiStopOKLab, gradient.MultiStopOKLCH,
+		gradient.MultiStopHSV, gradient.MultiStopLinearRGB,
 	} {
 		if fn(stops, 0) != nil || len(fn(stops[:1], 4)) != 1 || len(fn(stops, 10)) != 10 {
 			t.Fatal("multistop size contract")

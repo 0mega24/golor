@@ -1,4 +1,4 @@
-// Package gradient interpolates in RGB, HSL, LAB/LCH, and OKLab/OKLCH.
+// Package gradient interpolates in RGB, linear-light RGB, HSL/HSV, LAB/LCH, and OKLab/OKLCH.
 // Defaults use premultiplied alpha, shorter hue arcs, borrowed achromatic hues, and gamut mapping.
 package gradient
 
@@ -84,8 +84,8 @@ type polarColor struct {
 	achromatic bool
 }
 
-// polar builds a polar mixer; hue is not premultiplied.
-func polar(a, b golor.Color, to func(golor.Color) polarColor, from func(space.Vec3) golor.Color) mixer {
+// polarWithOptions builds a polar mixer; hue is not premultiplied.
+func polarWithOptions(a, b golor.Color, to func(golor.Color) polarColor, from func(space.Vec3) golor.Color, options Options) mixer {
 	pa, pb := to(a), to(b)
 	switch {
 	case pa.achromatic && !pb.achromatic:
@@ -96,23 +96,54 @@ func polar(a, b golor.Color, to func(golor.Color) polarColor, from func(space.Ve
 	aa, ab := alphas(a, b)
 	return func(t float64) golor.Color {
 		alpha := aa + t*(ab-aa)
+		chroma := mixPremul(pa.v[1], pb.v[1], aa, ab, alpha, t)
+		if t > 0 && t < 1 {
+			if options.Chroma != nil {
+				if adjusted := options.Chroma(t, chroma); finite(adjusted) {
+					chroma = math.Max(0, adjusted)
+				}
+			}
+			chroma = math.Max(chroma, options.MinChroma)
+		}
 		out := from(space.Vec3{
 			mixPremul(pa.v[0], pb.v[0], aa, ab, alpha, t),
-			mixPremul(pa.v[1], pb.v[1], aa, ab, alpha, t),
-			lerpHue(pa.v[2], pb.v[2], t),
+			chroma,
+			lerpHueRoute(pa.v[2], pb.v[2], t, options.Hue),
 		})
 		out.A = alpha
 		return out
 	}
 }
 
-func lerpHue(h1, h2, t float64) float64 {
-	diff := math.Mod(h2-h1, 360)
-	switch {
-	case diff > 180:
-		diff -= 360
-	case diff < -180:
-		diff += 360
+func lerpHueRoute(h1, h2, t float64, route HueRoute) float64 {
+	h1, h2 = space.NormalizeHue(h1), space.NormalizeHue(h2)
+	diff := h2 - h1
+	switch route {
+	case HueLonger:
+		switch {
+		case diff >= 0 && diff < 180:
+			diff -= 360
+		case diff > -180 && diff < 0:
+			diff += 360
+		}
+		if diff == -360 {
+			diff = 360
+		}
+	case HueIncreasing:
+		if diff < 0 {
+			diff += 360
+		}
+	case HueDecreasing:
+		if diff > 0 {
+			diff -= 360
+		}
+	case HueShorter:
+		switch {
+		case diff > 180:
+			diff -= 360
+		case diff < -180:
+			diff += 360
+		}
 	}
 	return space.NormalizeHue(h1 + t*diff)
 }
