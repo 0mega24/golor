@@ -7,11 +7,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unicode"
-
-	"github.com/0mega24/golor/v2/internal/space"
 
 	_ "embed"
+
+	"github.com/0mega24/golor/v2/internal/space"
 )
 
 // CSS named-color data comes from W3C CSS Color Module Level 4.
@@ -21,142 +20,123 @@ var namedColorsJSON []byte
 
 var namedColors = loadNamedColors()
 
-// ParseCSS parses a CSS named color, hex color, rgb()/rgba(), or hsl()/hsla() color.
+// namedIndex holds the named colors (except transparent) sorted by name, with their
+// OKLab coordinates precomputed for NearestNamed.
+var namedIndex = buildNamedIndex(namedColors)
+
+type namedEntry struct {
+	name  string
+	color Color
+	lab   space.Vec3
+}
+
+// ParseCSS parses context-free CSS Color 4 syntax, clamping components and mapping to sRGB.
+// It accepts none and angle units; currentcolor and system colors return errors.
+// Supported forms and spaces are listed in the README.
 func ParseCSS(s string) (Color, error) {
 	input := strings.TrimSpace(s)
-	lower := strings.ToLower(input)
 	switch {
-	case strings.HasPrefix(input, "#"):
+	case input == "":
+		return Color{}, fmt.Errorf("golor: empty CSS color")
+	case input[0] == '#':
 		return Hex(input)
-	case strings.HasPrefix(lower, "rgb("), strings.HasPrefix(lower, "rgba("):
-		return ParseRGB(input)
-	case strings.HasPrefix(lower, "hsl("), strings.HasPrefix(lower, "hsla("):
-		return ParseHSL(input)
-	default:
+	case strings.IndexByte(input, '(') < 0:
 		return Named(input)
 	}
-}
-
-// ParseRGB parses CSS rgb()/rgba() syntax, including comma and space/slash forms.
-func ParseRGB(s string) (Color, error) {
 	name, body, err := cssFunction(s)
 	if err != nil {
 		return Color{}, err
 	}
-	if name != "rgb" && name != "rgba" {
-		return Color{}, fmt.Errorf("golor: expected rgb()/rgba(), got %q", s)
+	fn, label := lookupCSSFunction(name)
+	if fn == nil {
+		return Color{}, fmt.Errorf("golor: unsupported CSS color function %q", s)
 	}
-	parts, alpha, hasAlpha := splitCSSComponents(body)
-	if name == "rgba" && !hasAlpha {
-		if len(parts) != 4 {
-			return Color{}, fmt.Errorf("golor: invalid RGB color %q", s)
-		}
-		alpha = parts[3]
-		parts = parts[:3]
-		hasAlpha = true
-	}
-	if len(parts) != 3 {
-		return Color{}, fmt.Errorf("golor: invalid RGB color %q", s)
-	}
-	r, err := parseRGBChannel(parts[0])
-	if err != nil {
-		return Color{}, fmt.Errorf("golor: invalid RGB color %q", s)
-	}
-	g, err := parseRGBChannel(parts[1])
-	if err != nil {
-		return Color{}, fmt.Errorf("golor: invalid RGB color %q", s)
-	}
-	b, err := parseRGBChannel(parts[2])
-	if err != nil {
-		return Color{}, fmt.Errorf("golor: invalid RGB color %q", s)
-	}
-	a := 1.0
-	if hasAlpha {
-		a, err = parseAlpha(alpha)
-		if err != nil {
-			return Color{}, fmt.Errorf("golor: invalid RGB color %q", s)
-		}
-	}
-	return RGBAf(r, g, b, a), nil
-}
-
-// ParseHSL parses CSS hsl()/hsla() syntax, including comma and space/slash forms.
-func ParseHSL(s string) (Color, error) {
-	name, body, err := cssFunction(s)
-	if err != nil {
-		return Color{}, err
-	}
-	if name != "hsl" && name != "hsla" {
-		return Color{}, fmt.Errorf("golor: expected hsl()/hsla(), got %q", s)
-	}
-	parts, alpha, hasAlpha := splitCSSComponents(body)
-	if name == "hsla" && !hasAlpha {
-		if len(parts) != 4 {
-			return Color{}, fmt.Errorf("golor: invalid HSL color %q", s)
-		}
-		alpha = parts[3]
-		parts = parts[:3]
-		hasAlpha = true
-	}
-	if len(parts) != 3 {
-		return Color{}, fmt.Errorf("golor: invalid HSL color %q", s)
-	}
-	h, err := parseHue(parts[0])
-	if err != nil {
-		return Color{}, fmt.Errorf("golor: invalid HSL color %q", s)
-	}
-	sat, err := parsePercent(parts[1])
-	if err != nil {
-		return Color{}, fmt.Errorf("golor: invalid HSL color %q", s)
-	}
-	light, err := parsePercent(parts[2])
-	if err != nil {
-		return Color{}, fmt.Errorf("golor: invalid HSL color %q", s)
-	}
-	a := 1.0
-	if hasAlpha {
-		a, err = parseAlpha(alpha)
-		if err != nil {
-			return Color{}, fmt.Errorf("golor: invalid HSL color %q", s)
-		}
-	}
-	return hslToColor(h, sat, light, a), nil
-}
-
-// Named returns the CSS Color Level 4 named color matching name.
-func Named(name string) (Color, error) {
-	c, ok := namedColors[strings.ToLower(strings.TrimSpace(name))]
+	c, ok := fn(body)
 	if !ok {
+		return Color{}, fmt.Errorf("golor: invalid %s color %q", label, s)
+	}
+	return c, nil
+}
+
+// ParseRGB parses CSS rgb()/rgba() syntax, including legacy comma and modern space/slash
+// forms. rgb and rgba are aliases. Out-of-range channels and alpha are clamped.
+func ParseRGB(s string) (Color, error) {
+	return parseNamedFunction(s, "rgb", "RGB", parseRGBBody)
+}
+
+// ParseHSL accepts legacy/modern hsl()/hsla(), wrapped angle units, and clamped S/L.
+func ParseHSL(s string) (Color, error) {
+	return parseNamedFunction(s, "hsl", "HSL", parseHSLBody)
+}
+
+func parseNamedFunction(s, want, label string, fn func(string) (Color, bool)) (Color, error) {
+	name, body, err := cssFunction(s)
+	if err != nil {
+		return Color{}, err
+	}
+	if !strings.EqualFold(name, want) && !strings.EqualFold(name, want+"a") {
+		return Color{}, fmt.Errorf("golor: expected %s()/%sa(), got %q", want, want, s)
+	}
+	c, ok := fn(body)
+	if !ok {
+		return Color{}, fmt.Errorf("golor: invalid %s color %q", label, s)
+	}
+	return c, nil
+}
+
+func lookupCSSFunction(name string) (fn func(string) (Color, bool), label string) {
+	switch {
+	case strings.EqualFold(name, "rgb"), strings.EqualFold(name, "rgba"):
+		return parseRGBBody, "RGB"
+	case strings.EqualFold(name, "hsl"), strings.EqualFold(name, "hsla"):
+		return parseHSLBody, "HSL"
+	case strings.EqualFold(name, "hwb"):
+		return parseHWBBody, "HWB"
+	case strings.EqualFold(name, "lab"):
+		return parseLabBody, "Lab"
+	case strings.EqualFold(name, "lch"):
+		return parseLCHBody, "LCH"
+	case strings.EqualFold(name, "oklab"):
+		return parseOKLabBody, "OKLab"
+	case strings.EqualFold(name, "oklch"):
+		return parseOKLCHBody, "OKLCH"
+	case strings.EqualFold(name, "color"):
+		return parseColorBody, "color()"
+	}
+	return nil, ""
+}
+
+// Named returns the CSS Color Level 4 named color matching name (case-insensitive).
+func Named(name string) (Color, error) {
+	key := strings.ToLower(strings.TrimSpace(name))
+	c, ok := namedColors[key]
+	if !ok {
+		if key == "currentcolor" {
+			return Color{}, fmt.Errorf("golor: currentcolor depends on the element's context and cannot be resolved")
+		}
 		return Color{}, fmt.Errorf("golor: unknown named color %q", name)
 	}
 	return c, nil
 }
 
-// NearestNamed returns the closest CSS named color to c by Euclidean RGB distance.
-// Alpha is ignored. Ties are resolved by name.
+// NearestNamed returns the CSS named color closest to c by perceptual OKLab distance.
+// Alpha is ignored and transparent is never returned. Ties are resolved by name.
 func NearestNamed(c Color) (name string, color Color) {
-	names := make([]string, 0, len(namedColors))
-	for name := range namedColors {
-		if name == "transparent" {
-			continue
-		}
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	bestName := ""
-	bestColor := Color{}
+	lab := oklabOf(c)
+	best := -1
 	bestDistance := math.Inf(1)
-	for _, name := range names {
-		named := namedColors[name]
-		distance := rgbDistanceSquared(c, named)
-		if distance < bestDistance {
-			bestName = name
-			bestColor = named
-			bestDistance = distance
+	for i := range namedIndex {
+		e := &namedIndex[i]
+		d0, d1, d2 := lab[0]-e.lab[0], lab[1]-e.lab[1], lab[2]-e.lab[2]
+		if d := d0*d0 + d1*d1 + d2*d2; d < bestDistance {
+			best, bestDistance = i, d
 		}
 	}
-	return bestName, bestColor
+	return namedIndex[best].name, namedIndex[best].color
+}
+
+func oklabOf(c Color) space.Vec3 {
+	return space.LinearSRGBToOKLab(space.LinearizeVec(space.Vec3{space.Clamp01(c.R), space.Clamp01(c.G), space.Clamp01(c.B)}))
 }
 
 func loadNamedColors() map[string]Color {
@@ -175,116 +155,77 @@ func loadNamedColors() map[string]Color {
 	return colors
 }
 
-func rgbDistanceSquared(a, b Color) float64 {
-	dr := a.R - b.R
-	dg := a.G - b.G
-	db := a.B - b.B
-	return dr*dr + dg*dg + db*db
+func buildNamedIndex(colors map[string]Color) []namedEntry {
+	entries := make([]namedEntry, 0, len(colors))
+	for name, c := range colors {
+		if name == "transparent" {
+			continue
+		}
+		entries = append(entries, namedEntry{name: name, color: c, lab: oklabOf(c)})
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].name < entries[j].name })
+	return entries
 }
 
-// CSSRGBString returns c formatted as CSS rgb() or rgba() syntax.
+// CSSRGBString returns c formatted as CSS rgb() syntax, e.g. "rgb(255 107 53)" or
+// "rgb(255 107 53 / 0.502)". ParseCSS returns the same 8-bit color.
 func (c Color) CSSRGBString() string {
-	if c.A8() == 255 {
-		return fmt.Sprintf("rgb(%d %d %d)", c.R8(), c.G8(), c.B8())
-	}
-	return fmt.Sprintf("rgb(%d %d %d / %.3g)", c.R8(), c.G8(), c.B8(), space.Clamp01(c.A))
+	body := strconv.Itoa(int(c.R8())) + " " + strconv.Itoa(int(c.G8())) + " " + strconv.Itoa(int(c.B8()))
+	return "rgb(" + body + cssAlphaSuffix(c) + ")"
 }
 
-// CSSHSLString returns c formatted as CSS hsl() syntax.
+// CSSHSLString formats hsl() with enough precision to round-trip c's 8-bit channels.
 func (c Color) CSSHSLString() string {
-	h, s, l := colorToHSL(c)
-	if c.A8() == 255 {
-		return fmt.Sprintf("hsl(%.3g %.3g%% %.3g%%)", h, s*100, l*100)
+	h, s, l := colorToHSL(c.quantized())
+	h = math.Round(h*100) / 100
+	if h >= 360 {
+		h -= 360
 	}
-	return fmt.Sprintf("hsl(%.3g %.3g%% %.3g%% / %.3g)", h, s*100, l*100, space.Clamp01(c.A))
+	return "hsl(" + formatCSSNumber(h, 2) + " " + formatCSSNumber(s*100, 2) + "% " +
+		formatCSSNumber(l*100, 2) + "%" + cssAlphaSuffix(c) + ")"
 }
 
-func cssFunction(s string) (name, body string, err error) {
-	input := strings.TrimSpace(s)
-	open := strings.IndexByte(input, '(')
-	if open < 1 || !strings.HasSuffix(input, ")") {
-		return "", "", fmt.Errorf("golor: invalid CSS color %q", s)
+// CSSOKLCHString formats oklch() to round-trip c's 8-bit channels; greys use C=H=0.
+func (c Color) CSSOKLCHString() string {
+	lch := space.ToPolar(oklabOf(c.quantized()), space.AchromaticOKLCH)
+	chroma := math.Round(lch[1]*1e5) / 1e5
+	h := math.Round(lch[2]*1000) / 1000
+	if h >= 360 || chroma == 0 {
+		h = 0
 	}
-	name = strings.ToLower(strings.TrimSpace(input[:open]))
-	body = strings.TrimSpace(input[open+1 : len(input)-1])
-	if body == "" {
-		return "", "", fmt.Errorf("golor: invalid CSS color %q", s)
-	}
-	return name, body, nil
+	return "oklch(" + formatCSSNumber(lch[0]*100, 3) + "% " + formatCSSNumber(chroma, 5) + " " +
+		formatCSSNumber(h, 3) + cssAlphaSuffix(c) + ")"
 }
 
-func splitCSSComponents(body string) ([]string, string, bool) {
-	body = strings.TrimSpace(body)
-	var alpha string
-	hasAlpha := false
-	if slash := strings.IndexByte(body, '/'); slash >= 0 {
-		alpha = strings.TrimSpace(body[slash+1:])
-		body = strings.TrimSpace(body[:slash])
-		hasAlpha = true
-	}
-	body = strings.ReplaceAll(body, ",", " ")
-	fields := strings.FieldsFunc(body, unicode.IsSpace)
-	return fields, alpha, hasAlpha
+// quantized returns c's color channels rounded to the 8-bit grid.
+func (c Color) quantized() Color {
+	return RGB(c.R8(), c.G8(), c.B8())
 }
 
-func parseRGBChannel(s string) (float64, error) {
-	if strings.HasSuffix(s, "%") {
-		return parsePercent(s)
+func cssAlphaSuffix(c Color) string {
+	a := c.A8()
+	if a == 255 {
+		return ""
 	}
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil || v < 0 || v > 255 {
-		return 0, fmt.Errorf("invalid RGB channel")
-	}
-	return v / 255, nil
+	// Three decimals are enough to recover any 8-bit alpha (1/255 > 0.002).
+	return " / " + formatCSSNumber(float64(a)/255, 3)
 }
 
-func parseAlpha(s string) (float64, error) {
-	if strings.HasSuffix(s, "%") {
-		return parsePercent(s)
+// formatCSSNumber formats v with at most prec decimals and no trailing zeros.
+func formatCSSNumber(v float64, prec int) string {
+	s := strconv.FormatFloat(v, 'f', prec, 64)
+	if strings.IndexByte(s, '.') >= 0 {
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimSuffix(s, ".")
 	}
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil || v < 0 || v > 1 {
-		return 0, fmt.Errorf("invalid alpha")
+	if s == "-0" {
+		return "0"
 	}
-	return v, nil
-}
-
-func parsePercent(s string) (float64, error) {
-	if !strings.HasSuffix(s, "%") {
-		return 0, fmt.Errorf("expected percentage")
-	}
-	v, err := strconv.ParseFloat(strings.TrimSuffix(s, "%"), 64)
-	if err != nil || v < 0 || v > 100 {
-		return 0, fmt.Errorf("invalid percentage")
-	}
-	return v / 100, nil
-}
-
-func parseHue(s string) (float64, error) {
-	s = strings.TrimSuffix(s, "deg")
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil || v < 0 || v >= 360 {
-		return 0, fmt.Errorf("invalid hue")
-	}
-	return v, nil
-}
-
-func hslToColor(h, s, l, a float64) Color {
-	if s == 0 {
-		return RGBAf(l, l, l, a)
-	}
-	var q float64
-	if l < 0.5 {
-		q = l * (1 + s)
-	} else {
-		q = l + s - l*s
-	}
-	p := 2*l - q
-	return RGBAf(hueToRGB(p, q, h/360+1.0/3), hueToRGB(p, q, h/360), hueToRGB(p, q, h/360-1.0/3), a)
+	return s
 }
 
 func colorToHSL(c Color) (h, s, l float64) {
-	r, g, b := c.R, c.G, c.B
+	r, g, b := space.Clamp01(c.R), space.Clamp01(c.G), space.Clamp01(c.B)
 	max := math.Max(r, math.Max(g, b))
 	min := math.Min(r, math.Min(g, b))
 	l = (max + min) / 2
@@ -309,23 +250,4 @@ func colorToHSL(c Color) (h, s, l float64) {
 		h = (r-g)/delta + 4
 	}
 	return h * 60, s, l
-}
-
-func hueToRGB(p, q, t float64) float64 {
-	if t < 0 {
-		t++
-	}
-	if t > 1 {
-		t--
-	}
-	switch {
-	case t < 1.0/6:
-		return p + (q-p)*6*t
-	case t < 1.0/2:
-		return q
-	case t < 2.0/3:
-		return p + (q-p)*(2.0/3-t)*6
-	default:
-		return p
-	}
 }
