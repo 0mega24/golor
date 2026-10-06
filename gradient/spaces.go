@@ -15,12 +15,16 @@ func rgbMixer(a, b golor.Color) mixer {
 }
 
 func hslMixer(a, b golor.Color) mixer {
-	return polar(a, b,
+	return hslMixerWithOptions(a, b, Options{})
+}
+
+func hslMixerWithOptions(a, b golor.Color, options Options) mixer {
+	return polarWithOptions(a, b,
 		func(c golor.Color) polarColor {
 			h := convert.ToHSL(c)
 			return polarColor{space.Vec3{h.L, h.S, h.H}, h.IsAchromatic()}
 		},
-		func(v space.Vec3) golor.Color { return convert.FromHSL(convert.HSL{H: v[2], S: v[1], L: v[0]}) })
+		func(v space.Vec3) golor.Color { return convert.FromHSL(convert.HSL{H: v[2], S: v[1], L: v[0]}) }, options)
 }
 
 func labMixer(a, b golor.Color) mixer {
@@ -30,12 +34,16 @@ func labMixer(a, b golor.Color) mixer {
 }
 
 func lchMixer(a, b golor.Color) mixer {
-	return polar(a, b,
+	return lchMixerWithOptions(a, b, Options{})
+}
+
+func lchMixerWithOptions(a, b golor.Color, options Options) mixer {
+	return polarWithOptions(a, b,
 		func(c golor.Color) polarColor {
 			l := convert.ToLCH(c)
 			return polarColor{space.Vec3{l.L, l.C, l.H}, l.IsAchromatic()}
 		},
-		func(v space.Vec3) golor.Color { return convert.FromLCHMapped(convert.LCH{L: v[0], C: v[1], H: v[2]}) })
+		func(v space.Vec3) golor.Color { return convert.FromLCHMapped(convert.LCH{L: v[0], C: v[1], H: v[2]}) }, options)
 }
 
 func oklabMixer(a, b golor.Color) mixer {
@@ -47,14 +55,18 @@ func oklabMixer(a, b golor.Color) mixer {
 }
 
 func oklchMixer(a, b golor.Color) mixer {
-	return polar(a, b,
+	return oklchMixerWithOptions(a, b, Options{})
+}
+
+func oklchMixerWithOptions(a, b golor.Color, options Options) mixer {
+	return polarWithOptions(a, b,
 		func(c golor.Color) polarColor {
 			l := convert.ToOKLCH(c)
 			return polarColor{space.Vec3{l.L, l.C, l.H}, l.IsAchromatic()}
 		},
 		func(v space.Vec3) golor.Color {
 			return convert.FromOKLCHMapped(convert.OKLCH{L: v[0], C: v[1], H: v[2]})
-		})
+		}, options)
 }
 
 // RGB returns n evenly spaced colors interpolated in sRGB between a and b.
@@ -111,3 +123,39 @@ func MultiStopOKLab(stops []golor.Color, n int) []golor.Color {
 func MultiStopOKLCH(stops []golor.Color, n int) []golor.Color {
 	return multiStop(stops, n, oklchMixer)
 }
+
+func linearRGBMixer(a, b golor.Color) mixer {
+	return rect(a, b,
+		func(c golor.Color) space.Vec3 {
+			return space.Vec3{space.Linearize(space.Clamp01(c.R)), space.Linearize(space.Clamp01(c.G)), space.Linearize(space.Clamp01(c.B))}
+		},
+		func(v space.Vec3) golor.Color {
+			return golor.RGBf(space.Delinearize(v[0]), space.Delinearize(v[1]), space.Delinearize(v[2]))
+		})
+}
+
+func hsvMixer(a, b golor.Color) mixer { return hsvMixerWithOptions(a, b, Options{}) }
+
+func hsvMixerWithOptions(a, b golor.Color, options Options) mixer {
+	return polarWithOptions(a, b,
+		func(c golor.Color) polarColor {
+			h := convert.ToHSV(c)
+			return polarColor{space.Vec3{h.V, h.S, h.H}, h.IsAchromatic()}
+		},
+		func(v space.Vec3) golor.Color { return convert.FromHSV(convert.HSV{H: v[2], S: v[1], V: v[0]}) }, options)
+}
+
+// LinearRGB returns n colors interpolated in linear-light sRGB with premultiplied alpha.
+func LinearRGB(a, b golor.Color, n int) []golor.Color { return sample(n, a, linearRGBMixer(a, b)) }
+
+// HSV returns n colors interpolated in HSV along the shorter hue arc.
+// Achromatic endpoints borrow the other endpoint's hue.
+func HSV(a, b golor.Color, n int) []golor.Color { return sample(n, a, hsvMixer(a, b)) }
+
+// MultiStopLinearRGB interpolates through equally spaced stops in linear-light sRGB.
+func MultiStopLinearRGB(stops []golor.Color, n int) []golor.Color {
+	return multiStop(stops, n, linearRGBMixer)
+}
+
+// MultiStopHSV interpolates through equally spaced stops in HSV.
+func MultiStopHSV(stops []golor.Color, n int) []golor.Color { return multiStop(stops, n, hsvMixer) }
