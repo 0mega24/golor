@@ -5,68 +5,70 @@ import (
 
 	"github.com/0mega24/golor/v2"
 	"github.com/0mega24/golor/v2/convert"
-	"github.com/0mega24/golor/v2/deltae"
 )
 
 const (
 	minAccessibleDeltaE = 10.0
-
 	// MaxAccessiblePaletteAttempts caps hue-shift attempts per color.
 	MaxAccessiblePaletteAttempts = 24
 )
 
-// AccessiblePalette returns a best-effort palette distinguishable under d.
-// It preserves alpha and may return partially separated results for pathological palettes.
+// AccessiblePalette hue-shifts colors closer than ΔE76 10 under d, composited over white.
+// Earlier colors take precedence; alpha is preserved. Separation is best effort.
 func AccessiblePalette(colors []golor.Color, d Deficiency) []golor.Color {
 	result := make([]golor.Color, len(colors))
 	copy(result, colors)
-	for i := 0; i < len(result); i++ {
-		if i == 0 || minDistanceToPrior(result, i, d) >= minAccessibleDeltaE {
-			continue
+	// Cache Lab values of simulated colors already placed in the palette. Computing them once per
+	// placed color keeps the search O(n² · attempts) instead of O(n³ · attempts).
+	placed := make([]convert.LAB, 0, len(colors))
+	for i := range result {
+		if i > 0 && minDistance(placed, result[i], d) < minAccessibleDeltaE {
+			result[i] = bestAccessibleCandidate(placed, result[i], d)
 		}
-		result[i] = bestAccessibleCandidate(result, i, d)
+		placed = append(placed, simulatedLab(result[i], d))
 	}
 	return result
 }
 
-func bestAccessibleCandidate(colors []golor.Color, index int, d Deficiency) golor.Color {
-	original := colors[index]
+func bestAccessibleCandidate(placed []convert.LAB, original golor.Color, d Deficiency) golor.Color {
 	best := original
-	bestDistance := minDistanceToPrior(colors, index, d)
+	bestDistance := minDistance(placed, original, d)
 	hsl := convert.ToHSL(original)
 	for attempt := 0; attempt < MaxAccessiblePaletteAttempts; attempt++ {
 		candidateHSL := hsl
 		candidateHSL.H = cbHueShift(hsl.H, adaptiveShift(attempt))
 		candidate := convert.FromHSL(candidateHSL)
 		candidate.A = original.A
-		colors[index] = candidate
-		distance := minDistanceToPrior(colors, index, d)
+		distance := minDistance(placed, candidate, d)
 		if distance > bestDistance {
 			best = candidate
 			bestDistance = distance
 		}
 		if distance >= minAccessibleDeltaE {
-			colors[index] = original
 			return candidate
 		}
 	}
-	colors[index] = original
 	return best
 }
 
-func minDistanceToPrior(colors []golor.Color, index int, d Deficiency) float64 {
-	if index <= 0 {
-		return math.Inf(1)
-	}
-	current := Simulate(colors[index], d)
-	minDistance := math.Inf(1)
-	for i := 0; i < index; i++ {
-		distance := deltae.DeltaE76(Simulate(colors[i], d), current)
-		if distance < minDistance {
-			minDistance = distance
+// simulatedLab returns the L*a*b* of c as seen under d, composited over white
+// (the same preparation deltae.DeltaE76 applies).
+func simulatedLab(c golor.Color, d Deficiency) convert.LAB {
+	s := Simulate(c, d)
+	a := s.A
+	return convert.ToLAB(golor.RGBf(s.R*a+1-a, s.G*a+1-a, s.B*a+1-a))
+}
+
+func minDistance(placed []convert.LAB, c golor.Color, d Deficiency) float64 {
+	current := simulatedLab(c, d)
+	m := math.Inf(1)
+	for _, p := range placed {
+		dl, da, db := p.L-current.L, p.A-current.A, p.B-current.B
+		if dist := math.Sqrt(dl*dl + da*da + db*db); dist < m {
+			m = dist
 		}
 	}
-	return minDistance
+	return m
 }
 
 func adaptiveShift(attempt int) float64 {

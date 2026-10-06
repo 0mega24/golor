@@ -2,9 +2,8 @@
 package colorblind
 
 import (
-	"math"
-
 	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/internal/space"
 )
 
 // Deficiency represents a type of color vision deficiency.
@@ -12,54 +11,63 @@ type Deficiency int
 
 // Deficiency constants enumerate the supported types of color vision deficiency.
 const (
-	Deuteranopia Deficiency = iota // green-weak
-	Protanopia                     // red-weak
-	Tritanopia                     // blue-yellow
+	Deuteranopia Deficiency = iota // Green-blind.
+	Protanopia                     // Red-blind.
+	Tritanopia                     // Blue-blind.
 )
 
-// Simulate returns the approximate appearance of c for someone with the given deficiency.
-// Uses the Viénot et al. (1999) matrix method for deuteranopia/protanopia,
-// and Brettel et al. (1997) for tritanopia. Alpha is preserved.
-func Simulate(c golor.Color, d Deficiency) golor.Color {
-	r := cbLinearize(c.R)
-	g := cbLinearize(c.G)
-	b := cbLinearize(c.B)
+// Parameters: libDaltonLens (public domain), Smith & Pokorny LMS.
+// https://github.com/DaltonLens/libDaltonLens/blob/master/libDaltonLens.c.
+var (
+	// vienotProtan and vienotDeutan use Viénot 1999, a single linear RGB projection accurate for protan/deutan.
+	vienotProtan = space.Mat3{
+		{0.11238, 0.88762, 0.00000},
+		{0.11238, 0.88762, -0.00000},
+		{0.00401, -0.00401, 1.00000},
+	}
+	vienotDeutan = space.Mat3{
+		{0.29275, 0.70725, 0.00000},
+		{0.29275, 0.70725, -0.00000},
+		{-0.02234, 0.02234, 1.00000},
+	}
+	// Brettel 1997 tritan projections, selected by the separation plane.
+	brettelTritan1 = space.Mat3{
+		{1.01277, 0.13548, -0.14826},
+		{-0.01243, 0.86812, 0.14431},
+		{0.07589, 0.80500, 0.11911},
+	}
+	brettelTritan2 = space.Mat3{
+		{0.93678, 0.18979, -0.12657},
+		{0.06154, 0.81526, 0.12320},
+		{-0.37562, 1.12767, 0.24796},
+	}
+	brettelTritanNormal = space.Vec3{0.03901, -0.02788, -0.01113}
+)
 
-	var sr, sg, sb float64
+// Simulate uses Viénot 1999 for protan/deutan and Brettel 1997 for tritan.
+// Alpha is preserved; unknown deficiencies leave c unchanged.
+func Simulate(c golor.Color, d Deficiency) golor.Color {
+	rgb := space.LinearizeVec(space.Vec3{space.Clamp01(c.R), space.Clamp01(c.G), space.Clamp01(c.B)})
+	var out space.Vec3
 	switch d {
 	case Deuteranopia:
-		sr = 0.29901*r + 0.58431*g + 0.11668*b
-		sg = 0.29901*r + 0.58431*g + 0.11668*b
-		sb = b
+		out = vienotDeutan.Mul(rgb)
 	case Protanopia:
-		sr = 0.10889*r + 0.89111*g
-		sg = 0.10889*r + 0.89111*g
-		sb = b
+		out = vienotProtan.Mul(rgb)
 	case Tritanopia:
-		sr = r
-		sg = 0.73407*g + 0.26593*b
-		sb = 0.73407*g + 0.26593*b
+		n := brettelTritanNormal
+		if rgb[0]*n[0]+rgb[1]*n[1]+rgb[2]*n[2] >= 0 {
+			out = brettelTritan1.Mul(rgb)
+		} else {
+			out = brettelTritan2.Mul(rgb)
+		}
+	default:
+		return c
 	}
-
-	return golor.RGBAf(cbGamma(sr), cbGamma(sg), cbGamma(sb), c.A)
-}
-
-func cbLinearize(v float64) float64 {
-	if v <= 0.04045 {
-		return v / 12.92
-	}
-	return math.Pow((v+0.055)/1.055, 2.4)
-}
-
-func cbGamma(v float64) float64 {
-	if v < 0 {
-		v = 0
-	}
-	if v > 1 {
-		v = 1
-	}
-	if v <= 0.0031308 {
-		return 12.92 * v
-	}
-	return 1.055*math.Pow(v, 1/2.4) - 0.055
+	return golor.RGBAf(
+		space.Delinearize(space.Clamp01(out[0])),
+		space.Delinearize(space.Clamp01(out[1])),
+		space.Delinearize(space.Clamp01(out[2])),
+		c.A,
+	)
 }
