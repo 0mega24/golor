@@ -15,14 +15,14 @@ golor provides a single `Color` type (normalized sRGB) and a set of focused sub-
 | Package | What it does |
 |---|---|
 | `golor` | Core type, constructors, hex/CSS parsing, JSON, image/color interop |
-| `convert` | HSL, HSV, L\*a\*b\*, LCH, CMYK conversions |
+| `convert` | HSL, HSV, CMYK, XYZ, L\*a\*b\*, LCH, OKLab, OKLCH, Display P3; gamut checks and CSS Color 4 gamut mapping |
 | `adjust` | Lighten, darken, saturate, hue shift, warm/cool, tint, shade |
 | `blend` | Blend modes: multiply, screen, overlay, soft light, and more |
-| `contrast` | WCAG 2.1 contrast ratio and enforcement |
-| `deltae` | Perceptual color difference (dE76 and CIEDE2000) |
+| `contrast` | WCAG 2.1 contrast ratio, APCA, and enforcement |
+| `deltae` | Perceptual color difference (dE76, CIEDE2000, OKLab) |
 | `colorblind` | Deficiency simulation and accessible palette generation |
 | `harmony` | Complementary, triadic, analogous, tetradic, split schemes |
-| `gradient` | Interpolation in RGB, HSL, L\*a\*b\*, and LCH |
+| `gradient` | RGB/linear-light RGB, HSL/HSV, LAB/LCH, OKLab/OKLCH; hue routes, easing, chroma controls, and positioned stops |
 | `palette` | Dominant color extraction from images |
 | `transform` | Fluent chained transformations |
 
@@ -46,6 +46,8 @@ fmt.Println(c) // #ff6b35
 ```
 
 Opaque colors print as `#rrggbb`; non-opaque colors print as `#rrggbbaa`.
+
+`ParseCSS` accepts CSS hex forms, named colors, `transparent`, `rgb()`/`rgba()`, `hsl()`/`hsla()`, `hwb()`, `lab()`, `lch()`, `oklab()`, and `oklch()`. It also accepts `color()` with `srgb`, `srgb-linear`, `display-p3`, `xyz`, `xyz-d65`, or `xyz-d50`; context-dependent colors return errors.
 `Color` marshals to JSON as readable 8-bit channels, e.g. `{"r":255,"g":107,"b":53,"a":255}`.
 
 ### Image interop
@@ -73,6 +75,12 @@ warmer   := adjust.Warm(c, 0.3)
 cooler   := adjust.Cool(c, 0.3)
 tinted   := adjust.Tint(c, 0.2)   // toward white
 shaded   := adjust.Shade(c, 0.2)  // toward black
+
+// OKLCH variants produce similar visual changes across hues.
+// Results are gamut-mapped instead of clipped.
+lighter  = adjust.LightenOKLCH(c, 0.1)
+vibrant  = adjust.SaturateOKLCH(c, 0.1)
+shifted  = adjust.ShiftHueOKLCH(c, 30)
 ```
 
 ### Fluent chaining
@@ -85,6 +93,11 @@ result := transform.From(c).
     Saturate(0.2).
     Warm(0.15).
     Color()
+
+// Chain methods modify the chain in place; use Clone to branch.
+base  := transform.From(c)
+light := base.Clone().LightenOKLCH(0.2).Color()
+dark  := base.Clone().DarkenOKLCH(0.2).Color()
 ```
 
 ### Color space conversions
@@ -92,15 +105,25 @@ result := transform.From(c).
 ```go
 import "github.com/0mega24/golor/v2/convert"
 
-hsl := convert.ToHSL(c)   // HSL{H:16, S:1.0, L:0.6}
-hsv := convert.ToHSV(c)
-lab := convert.ToLAB(c)
-lch := convert.ToLCH(c)
-cmyk := convert.ToCMYK(c)
+hsl   := convert.ToHSL(c)   // HSL{H:16, S:1.0, L:0.6}
+hsv   := convert.ToHSV(c)
+lab   := convert.ToLAB(c)     // CIE L*a*b*, D65.
+lch   := convert.ToLCH(c)
+oklch := convert.ToOKLCH(c)   // Perceptual, as used by CSS oklch().
+p3    := convert.ToP3(c)      // Display P3.
+cmyk  := convert.ToCMYK(c)
 
 back := convert.FromLCH(lch) // round-trips cleanly
 back  = convert.FromCMYK(cmyk)
+
+// Check colors outside sRGB, then map by reducing chroma (CSS Color 4)
+// to preserve hue and lightness instead of clipping each channel.
+vivid := convert.OKLCH{L: 0.7, C: 0.35, H: 150}
+vivid.InGamut()                      // Returns false.
+c = convert.FromOKLCHMapped(vivid)   // Nearest in-gamut color at the same L and hue.
 ```
+
+Every 8-bit sRGB color round-trips losslessly through every space, as checked exhaustively by `make test-full`. Arbitrary float inputs round-trip within 1e-12 (OKLab within 1e-9).
 
 ### Blend modes
 
@@ -111,8 +134,10 @@ out := blend.Multiply(base, layer)
 out  = blend.Screen(base, layer)
 out  = blend.Overlay(base, layer)
 out  = blend.SoftLight(base, layer)
-out  = blend.Mix(base, layer, 0.5) // linear interpolation
+out  = blend.Mix(base, layer, 0.5) // Premultiplied linear interpolation.
 ```
+
+Blend modes follow the W3C Compositing and Blending specification used by CSS `mix-blend-mode`, including backdrop alpha and the non-separable Hue, Saturation, Color, and Luminosity modes.
 
 ### Contrast and accessibility
 
@@ -122,8 +147,12 @@ import "github.com/0mega24/golor/v2/contrast"
 r := contrast.Ratio(fg, bg)         // e.g. 4.87
 ok := contrast.Meets(fg, bg, 4.5)   // WCAG AA
 
-// Adjust fg until it meets the threshold against bg
-fg = contrast.EnforceContrast(fg, bg, 4.5)
+// Adjust fg toward black or white, whichever is closer, to meet
+// the threshold against bg; ok is false if neither direction can reach it.
+fg, ok = contrast.EnforceContrastOK(fg, bg, 4.5)
+
+// APCA lightness contrast (Lc), as proposed for WCAG 3.
+lc := contrast.APCA(text, bg) // For example, 63.1 for #888 on #fff.
 ```
 
 ### Perceptual color difference
@@ -133,6 +162,7 @@ import "github.com/0mega24/golor/v2/deltae"
 
 d76   := deltae.DeltaE76(c1, c2)    // fast, CIE 1976
 d2000 := deltae.DeltaE2000(c1, c2)  // accurate, CIEDE2000
+dok   := deltae.DeltaEOK(c1, c2)    // OKLab distance; ~0.02 is just noticeable.
 
 // Nudge palette entries apart until each pair differs by at least minDeltaE
 palette = deltae.EnsureDistinct(palette, 10.0)
@@ -168,7 +198,7 @@ colors  = palette.Extract(
 )
 ```
 
-Results are ordered by dominance. Median-cut and octree are deterministic fast quantizers; k-means uses deterministic k-means++ initialization with an explicit seed and bounded iterations.
+Results are ordered by dominance. Median-cut and octree are fast, deterministic quantizers. K-means clusters in perceptual OKLab with deterministic k-means++ initialization and an explicit seed; its output does not depend on GOMAXPROCS. Fully transparent pixels are ignored; use `palette.WithMinAlpha` to change the threshold. A 512×512 image takes roughly 15-45 ms with any algorithm.
 
 ### Color harmonies
 
@@ -181,6 +211,10 @@ quad    := harmony.Tetradic(c)            // [4]Color
 analog  := harmony.Analogous(c)           // [3]Color
 split   := harmony.SplitComplementary(c)  // [3]Color
 shades  := harmony.Expand(c, 5)           // []Color, lightness spread
+
+// OKLCH variants keep perceived lightness and chroma constant across the scheme.
+triad    = harmony.TriadicOKLCH(c)
+shades   = harmony.ExpandOKLCH(c, 5)
 ```
 
 ### Gradients
@@ -189,14 +223,57 @@ shades  := harmony.Expand(c, 5)           // []Color, lightness spread
 import "github.com/0mega24/golor/v2/gradient"
 
 steps := gradient.RGB(black, white, 10)   // []Color, RGB interpolation
+steps  = gradient.LinearRGB(black, white, 10) // Linear-light interpolation.
+steps  = gradient.HSV(red, blue, 10)      // Hue/saturation/value.
 steps  = gradient.HSL(red, blue, 10)      // hue takes shortest path
-steps  = gradient.LCH(red, blue, 10)      // perceptually uniform
+steps  = gradient.OKLab(red, blue, 10)    // Perceptually even (CSS default).
+steps  = gradient.OKLCH(red, blue, 10)    // Preserves chroma through the hue arc.
+steps  = gradient.LCH(red, blue, 10)
 steps  = gradient.LAB(red, blue, 10)
 
 // Multi-stop
 stops  := []golor.Color{black, red, yellow, white}
-ramp   := gradient.MultiStopLCH(stops, 64)
+ramp   := gradient.MultiStopOKLCH(stops, 64)
 ```
+
+Gradients use premultiplied alpha, so fading to transparent does not darken the color. A grey endpoint takes the other endpoint's hue, and out-of-gamut steps are gamut-mapped. Existing functions use linear progression, the shorter hue route, and equally spaced stops; `MultiStopHSV` and `MultiStopLinearRGB` also follow these defaults.
+
+Use `Between` or `Generate` for configurable interpolation:
+
+```go
+// A longer hue route with eased progression.
+steps, err := gradient.Between(red, blue, 64, gradient.Options{
+    Space:  gradient.SpaceOKLCH,
+    Hue:    gradient.HueLonger,
+    Easing: gradient.EaseInOut,
+})
+if err != nil {
+    return err
+}
+
+// An explicit middle color at 30% of the ramp.
+ramp, err := gradient.Generate([]gradient.Stop{
+    {Color: red, Position: 0},
+    {Color: yellow, Position: 0.3},
+    {Color: blue, Position: 1},
+}, 64, gradient.Options{
+    Space:     gradient.SpaceOKLCH,
+    Easing:    gradient.Logarithmic(3),
+    MinChroma: 0.08,
+    Chroma: func(t, c float64) float64 {
+        return c + 0.04*4*t*(1-t) // Boost chroma near each segment's middle.
+    },
+})
+if err != nil {
+    return err
+}
+```
+
+`Options.Space` supports all eight spaces (`SpaceRGB` is the zero value). Hue routes are `HueShorter`, `HueLonger`, `HueIncreasing`, and `HueDecreasing`; they affect polar spaces only. Equal hues with `HueLonger` make a full increasing turn. Easing choices include `Linear`, `EaseIn`, `EaseOut`, `EaseInOut`, `Logarithmic(strength)`, or a custom `Curve`. Positive logarithmic strength advances faster near the start; strength in (-1, 0) advances slower. Zero or invalid strength uses linear progression. Easing applies within each segment, keeping stop positions fixed.
+
+Stop positions must be nondecreasing and within [0, 1]. Duplicate positions create hard transitions (the last stop wins at that position); outside the stops' span, the nearest color is held. `Generate` returns exactly `n` samples for nonempty stops and positive `n`, even for a single stop. It samples position 0 when `n == 1` and returns nil for no stops or `n <= 0`. Both configurable functions return errors for invalid options or positions.
+
+`Chroma` and `MinChroma` apply only to LCH/OKLCH between stops, before gamut mapping, using the selected space's chroma units. A callback receives eased segment progress and alpha-aware interpolated chroma. The minimum applies after the callback. Exact stop colors are preserved, but gamut mapping can lower final chroma below the requested minimum. Easing changes progression along a path; use hue routes, chroma controls, or deliberate stops to change the path itself.
 
 ---
 
@@ -220,6 +297,7 @@ Convert colors:
 ```sh
 golor convert "#ff6b35" --to hsl
 golor convert "hsl(9 100% 60% / 80%)" --from css --to cmyk --json
+golor convert "oklch(70% 0.15 150)" --to p3
 ```
 
 Check contrast:
@@ -260,6 +338,9 @@ swatch := ansi.Background(golor.RGB(255, 0, 0)) + "  " + ansi.Reset
 
 ```sh
 make test      # run tests with race detector
+make test-full # exhaustive 16.7M-color conversion and CSS round-trip sweeps
+make bench     # run all benchmarks
+make fuzz      # fuzz the CSS and hex parsers (FUZZTIME=30s)
 make lint      # run golangci-lint
 make fmt       # format with gofumpt
 make fix       # auto-fix lint issues where possible
