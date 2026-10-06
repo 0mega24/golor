@@ -5,6 +5,7 @@ import (
 	stdcolor "image/color"
 	"math"
 	"math/rand"
+	"runtime"
 	"testing"
 	"time"
 
@@ -69,17 +70,6 @@ func quadrants(size int) (*image.NRGBA, []golor.Color) {
 	return img, base
 }
 
-func TestGenericImageType(t *testing.T) {
-	img, _ := quadrants(32)
-	gray := image.NewGray(image.Rect(0, 0, 8, 8))
-	for i := range gray.Pix {
-		gray.Pix[i] = uint8(i % 3 * 100)
-	}
-	got := palette.Extract(gray, 3)
-	require.Len(t, got, 3)
-	assert.Equal(t, palette.Extract(img, 4), palette.Extract(img.SubImage(img.Bounds()), 4))
-}
-
 func TestAlgorithmsRecoverQuadrantColors(t *testing.T) {
 	img, base := quadrants(128)
 	for _, a := range algorithms {
@@ -93,6 +83,21 @@ func TestAlgorithmsRecoverQuadrantColors(t *testing.T) {
 			assert.Less(t, best, 0.02, "%s: no extracted color near %s (got %v)", a.name, want, got)
 		}
 	}
+}
+
+func TestKMeansIndependentOfGOMAXPROCS(t *testing.T) {
+	img := noise(256, 256) // Bins into enough points to run the assignment step in parallel.
+	prev := runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(prev)
+	want := palette.Extract(img, 16, palette.WithAlgorithm(palette.KMeans), palette.WithSeed(3))
+	for _, procs := range []int{2, 8} {
+		runtime.GOMAXPROCS(procs)
+		got := palette.Extract(img, 16, palette.WithAlgorithm(palette.KMeans), palette.WithSeed(3))
+		assert.Equal(t, want, got, "GOMAXPROCS=%d", procs)
+	}
+	runtime.GOMAXPROCS(prev)
+	other := palette.Extract(img, 16, palette.WithAlgorithm(palette.KMeans), palette.WithSeed(4))
+	assert.NotEqual(t, want, other, "seed should matter")
 }
 
 func TestOctreeLevelBoundary(t *testing.T) {
@@ -113,4 +118,15 @@ func TestExtractReturnsExactlyNWhenPossible(t *testing.T) {
 			assert.Len(t, palette.Extract(img, n, palette.WithAlgorithm(a.algo)), n, "%s n=%d", a.name, n)
 		}
 	}
+}
+
+func TestGenericImageType(t *testing.T) {
+	img, _ := quadrants(32)
+	gray := image.NewGray(image.Rect(0, 0, 8, 8))
+	for i := range gray.Pix {
+		gray.Pix[i] = uint8(i % 3 * 100)
+	}
+	got := palette.Extract(gray, 3)
+	require.Len(t, got, 3)
+	assert.Equal(t, palette.Extract(img, 4), palette.Extract(img.SubImage(img.Bounds()), 4))
 }

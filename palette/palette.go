@@ -5,10 +5,7 @@ package palette
 import (
 	"cmp"
 	"image"
-	"math"
-	"math/rand"
 	"slices"
-	"sort"
 
 	"github.com/0mega24/golor/v2"
 )
@@ -98,7 +95,6 @@ func Extract(img image.Image, n int, opts ...Option) []golor.Color {
 	if len(swatches) == 0 {
 		return nil
 	}
-	sortSwatches(swatches)
 	if n >= len(swatches) {
 		slices.SortFunc(swatches, compareSwatches)
 		return swatchColors(swatches)
@@ -259,37 +255,4 @@ func swatchColors(swatches []swatch) []golor.Color {
 		colors[i] = s.color
 	}
 	return colors
-}
-
-func sortSwatches(swatches []swatch) {
-	sort.Slice(swatches, func(i, j int) bool {
-		if swatches[i].count == swatches[j].count {
-			return colorKey(swatches[i].color) < colorKey(swatches[j].color)
-		}
-		return swatches[i].count > swatches[j].count
-	})
-}
-
-func rgbDistanceSquared(a, b golor.Color) float64 {
-	dr := a.R - b.R
-	dg := a.G - b.G
-	db := a.B - b.B
-	return dr*dr + dg*dg + db*db
-}
-
-func nearestCentroid(c golor.Color, centroids []golor.Color) int {
-	best := 0
-	bestDistance := math.Inf(1)
-	for i, centroid := range centroids {
-		distance := rgbDistanceSquared(c, centroid)
-		if distance < bestDistance {
-			bestDistance = distance
-			best = i
-		}
-	}
-	return best
-}
-
-func seededRand(seed int64) *rand.Rand {
-	return rand.New(rand.NewSource(seed)) // #nosec G404 -- deterministic k-means seeding, not security randomness.
 }
