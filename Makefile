@@ -6,10 +6,22 @@ ifeq ($(GO),)
 $(error Go not found in PATH)
 endif
 
-.PHONY: test vet vuln lint fix fmt fmt-check build cli clean
+.PHONY: test test-full bench fuzz vet vuln lint fix fmt fmt-check build cli clean
 
 test:
 	$(GO) test -race -count=1 ./...
+
+# Run exhaustive conversion and CSS round-trip sweeps over all 16,777,216 sRGB colors.
+test-full:
+	GOLOR_FULL_SWEEP=1 $(GO) test -count=1 -timeout 30m ./...
+
+bench:
+	$(GO) test -run '^$$' -bench . -benchmem ./...
+
+FUZZTIME ?= 30s
+fuzz:
+	$(GO) test -run '^$$' -fuzz FuzzParseCSS -fuzztime $(FUZZTIME) .
+	$(GO) test -run '^$$' -fuzz FuzzHex -fuzztime $(FUZZTIME) .
 
 vet:
 	$(GO) vet ./...
