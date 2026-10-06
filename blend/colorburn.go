@@ -1,6 +1,9 @@
 package blend
 
-import "github.com/0mega24/golor/v2"
+import (
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/internal/space"
+)
 
 // ColorBurn applies the Color Burn blend mode with Porter-Duff source-over alpha compositing.
 func ColorBurn(base, layer golor.Color) golor.Color {
@@ -18,5 +21,5 @@ func colorBurnChannel(base, layer float64) float64 {
 	if layer <= 0 {
 		return 0
 	}
-	return clamp01(1 - (1-base)/layer)
+	return space.Clamp01(1 - (1-base)/layer)
 }

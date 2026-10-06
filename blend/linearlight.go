@@ -1,6 +1,9 @@
 package blend
 
-import "github.com/0mega24/golor/v2"
+import (
+	"github.com/0mega24/golor/v2"
+	"github.com/0mega24/golor/v2/internal/space"
+)
 
 // LinearLight applies the Linear Light blend mode with Porter-Duff source-over alpha compositing.
 func LinearLight(base, layer golor.Color) golor.Color {
@@ -12,5 +15,5 @@ func LinearLight(base, layer golor.Color) golor.Color {
 }
 
 func linearLightChannel(base, layer float64) float64 {
-	return clamp01(base + 2*layer - 1)
+	return space.Clamp01(base + 2*layer - 1)
 }
