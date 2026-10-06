@@ -112,3 +112,31 @@ func TestPaletteMissingFileJSONError(t *testing.T) {
 		t.Fatalf("expected structured error, got %v", got)
 	}
 }
+
+func TestConvertModernSpacesAndContrastAPCA(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := execute(&stdout, &stderr, []string{"--json", "convert", "#ff0000", "--to", "oklch"}); err != nil {
+		t.Fatalf("execute() error = %v", err)
+	}
+	var lch map[string]float64
+	if err := json.Unmarshal(stdout.Bytes(), &lch); err != nil || lch["h"] < 29 || lch["h"] > 30 {
+		t.Fatalf("oklch JSON = %s (%v)", stdout.String(), err)
+	}
+	for _, to := range []string{"oklab", "p3", "xyz"} {
+		stdout.Reset()
+		if err := execute(&stdout, &stderr, []string{"convert", "#ff0000", "--to", to}); err != nil || stdout.Len() == 0 {
+			t.Fatalf("convert --to %s: %v", to, err)
+		}
+	}
+	stdout.Reset()
+	if err := execute(&stdout, &stderr, []string{"--json", "contrast", "#888888", "#ffffff", "--enforce", "7"}); err != nil {
+		t.Fatalf("execute() error = %v", err)
+	}
+	var res struct {
+		APCA          float64 `json:"apca"`
+		AdjustedMeets *bool   `json:"adjusted_meets"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &res); err != nil || res.APCA < 63 || res.APCA > 63.2 || res.AdjustedMeets == nil || !*res.AdjustedMeets {
+		t.Fatalf("contrast JSON = %s (%v)", stdout.String(), err)
+	}
+}

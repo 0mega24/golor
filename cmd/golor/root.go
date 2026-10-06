@@ -109,7 +109,7 @@ func newConvertCommand(stdout io.Writer, opts *cliOptions) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&from, "from", "auto", "input format: auto, hex, rgb, hsl, named, css")
-	cmd.Flags().StringVar(&to, "to", "hex", "output format: hex, rgb, hsl, hsv, lab, lch, cmyk")
+	cmd.Flags().StringVar(&to, "to", "hex", "output format: hex, rgb, hsl, hsv, lab, lch, oklab, oklch, p3, xyz, cmyk")
 	return cmd
 }
 
@@ -162,6 +162,34 @@ func printConverted(w io.Writer, jsonOut bool, c golor.Color, to string) error {
 		}
 		_, err := fmt.Fprintf(w, "CMYK{C:%.4f M:%.4f Y:%.4f K:%.4f}\n", cmyk.C, cmyk.M, cmyk.Y, cmyk.K)
 		return err
+	case "oklab":
+		o := convert.ToOKLab(c)
+		if jsonOut {
+			return writeJSON(w, map[string]float64{"l": o.L, "a": o.A, "b": o.B})
+		}
+		_, err := fmt.Fprintf(w, "OKLab{L:%.5f A:%.5f B:%.5f}\n", o.L, o.A, o.B)
+		return err
+	case "oklch":
+		o := convert.ToOKLCH(c)
+		if jsonOut {
+			return writeJSON(w, map[string]float64{"l": o.L, "c": o.C, "h": o.H})
+		}
+		_, err := fmt.Fprintf(w, "OKLCH{L:%.5f C:%.5f H:%.2f}\n", o.L, o.C, o.H)
+		return err
+	case "p3", "display-p3":
+		p := convert.ToP3(c)
+		if jsonOut {
+			return writeJSON(w, map[string]float64{"r": p.R, "g": p.G, "b": p.B})
+		}
+		_, err := fmt.Fprintf(w, "color(display-p3 %.5f %.5f %.5f)\n", p.R, p.G, p.B)
+		return err
+	case "xyz":
+		x := convert.ToXYZ(c)
+		if jsonOut {
+			return writeJSON(w, map[string]float64{"x": x.X, "y": x.Y, "z": x.Z})
+		}
+		_, err := fmt.Fprintf(w, "XYZ{X:%.5f Y:%.5f Z:%.5f}\n", x.X, x.Y, x.Z)
+		return err
 	default:
 		return fmt.Errorf("unknown output format %q", to)
 	}
@@ -171,7 +199,7 @@ func newContrastCommand(stdout io.Writer, opts *cliOptions) *cobra.Command {
 	var enforce float64
 	cmd := &cobra.Command{
 		Use:   "contrast <foreground> <background>",
-		Short: "Calculate WCAG contrast between two colors",
+		Short: "Calculate WCAG 2 contrast ratio and APCA lightness contrast between two colors",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fg, err := parseColor(args[0], "auto")
@@ -187,19 +215,22 @@ func newContrastCommand(stdout io.Writer, opts *cliOptions) *cobra.Command {
 				Ratio: math.Round(ratio*100) / 100,
 				AA:    ratio >= 4.5,
 				AAA:   ratio >= 7.0,
+				APCA:  math.Round(contrast.APCA(fg, bg)*10) / 10,
 			}
 			if enforce > 0 {
-				adjusted := contrast.EnforceContrast(fg, bg, enforce)
+				adjusted, met := contrast.EnforceContrastOK(fg, bg, enforce)
 				result.Adjusted = &adjusted
+				result.AdjustedMeets = &met
 			}
 			if opts.json {
 				return writeJSON(stdout, result)
 			}
 			if result.Adjusted != nil {
-				_, err = fmt.Fprintf(stdout, "ratio %.2f AA:%t AAA:%t adjusted:%s\n", result.Ratio, result.AA, result.AAA, result.Adjusted.String())
+				_, err = fmt.Fprintf(stdout, "ratio %.2f AA:%t AAA:%t APCA:%.1f adjusted:%s meets:%t\n",
+					result.Ratio, result.AA, result.AAA, result.APCA, result.Adjusted.String(), *result.AdjustedMeets)
 				return err
 			}
-			_, err = fmt.Fprintf(stdout, "ratio %.2f AA:%t AAA:%t\n", result.Ratio, result.AA, result.AAA)
+			_, err = fmt.Fprintf(stdout, "ratio %.2f AA:%t AAA:%t APCA:%.1f\n", result.Ratio, result.AA, result.AAA, result.APCA)
 			return err
 		},
 	}
@@ -208,10 +239,12 @@ func newContrastCommand(stdout io.Writer, opts *cliOptions) *cobra.Command {
 }
 
 type contrastResult struct {
-	Ratio    float64      `json:"ratio"`
-	AA       bool         `json:"aa"`
-	AAA      bool         `json:"aaa"`
-	Adjusted *golor.Color `json:"adjusted,omitempty"`
+	Ratio         float64      `json:"ratio"`
+	AA            bool         `json:"aa"`
+	AAA           bool         `json:"aaa"`
+	APCA          float64      `json:"apca"`
+	Adjusted      *golor.Color `json:"adjusted,omitempty"`
+	AdjustedMeets *bool        `json:"adjusted_meets,omitempty"`
 }
 
 func newPreviewCommand(stdout io.Writer, opts *cliOptions) *cobra.Command {
