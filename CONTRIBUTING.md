@@ -23,12 +23,13 @@ go mod download
 ```sh
 make test      # go test -race -count=1 ./...
 make vet       # go vet ./...
+make vuln      # govulncheck ./...
 make lint      # golangci-lint run
 make fmt       # gofumpt -extra -l -w .
 make fix       # golangci-lint run --fix
 ```
 
-All of these must pass before opening a PR. CI runs `vet`, `fmt`, and `lint` in the lint job and `test` in the test job.
+All of these must pass before opening a PR. CI runs `vet`, `fmt`, and `lint` in the lint job, `test` in the test job, and `vuln` in the vulnerability check job.
 
 ## Making changes
 
