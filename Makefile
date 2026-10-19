@@ -6,13 +6,16 @@ ifeq ($(GO),)
 $(error Go not found in PATH)
 endif
 
-.PHONY: test vet lint fix fmt fmt-check build cli clean
+.PHONY: test vet vuln lint fix fmt fmt-check build cli clean
 
 test:
 	$(GO) test -race -count=1 ./...
 
 vet:
 	$(GO) vet ./...
+
+vuln:
+	$(GO) run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
 lint:
 ifeq ($(LINT),)
